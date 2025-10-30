@@ -4,26 +4,20 @@
   "private": true,
   "description": "ICON48 - Autonomous enterprise operating system backend",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
   },
   "scripts": {
-  "dev": "ts-node src/server.ts",
-  "build": "tsc",
-  "start": "node dist/server.js",
-  "lint": "turbo run lint",
-  "typecheck": "turbo run typecheck",
-  "clean": "rm -rf dist node_modules",
-  "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
-  "db:push": "npx prisma db push",
-  "db:migrate": "npx prisma migrate deploy",
-  "db:studio": "npx prisma studio"
-}
-  "dependencies": {
-    "@prisma/client": "^5.22.0",
-    "express": "^5.1.0",
-    "dotenv": "^16.4.5",
-    "cors": "^2.8.5",
-    "prisma": "5.22.0"
+    "dev": "ts-node src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "clean": "rm -rf dist node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "db:push": "npx prisma db push",
+    "db:migrate": "npx prisma migrate deploy",
+    "db:studio": "npx prisma studio"
   },
   "devDependencies": {
     "@types/express": "^5.0.5",
@@ -31,8 +25,12 @@
     "nodemon": "^3.1.10",
     "prettier": "^3.1.0",
     "ts-node": "^10.9.2",
+    "turbo": "^1.11.0",
     "typescript": "^5.3.3"
   },
-  "license": "UNLICENSED"
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "express": "^5.1.0",
+    "prisma": "5.22.0"
+  }
 }
-

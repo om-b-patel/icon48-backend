@@ -7,13 +7,17 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "dev": "ts-node src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js",
-    "lint": "prettier --check .",
-    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
-    "postinstall": "npx prisma generate"
-  },
+  "dev": "ts-node src/server.ts",
+  "build": "tsc",
+  "start": "node dist/server.js",
+  "lint": "turbo run lint",
+  "typecheck": "turbo run typecheck",
+  "clean": "rm -rf dist node_modules",
+  "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+  "db:push": "npx prisma db push",
+  "db:migrate": "npx prisma migrate deploy",
+  "db:studio": "npx prisma studio"
+}
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "express": "^5.1.0",
@@ -31,5 +35,4 @@
   },
   "license": "UNLICENSED"
 }
-
 

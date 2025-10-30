@@ -52,6 +52,6 @@ app.get('/health', async (req, res) => {
     await prisma.$queryRaw`SELECT 1`;
     res.json({ status: 'ok', service: 'ICON48 backend live ✅', database: 'connected', time: new Date() });
   } catch (err) {
-    res.status(500).json({ status: 'error', service: 'ICON48 backend ⚠️', database: 'unreachable', time: new Date(), error: err.message });
+    res.status(500).json({ status: 'error', service: 'ICON48 backend ⚠️', database: 'unreachable', time: new Date(), error: err instanceof Error ? err.message : String(err) });
   }
 });

@@ -1,0 +1,173 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma, supabase } from '@icon48/db';
+import { z } from 'zod';
+
+const SignupSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  fullName: z.string().optional(),
+});
+
+const LoginSchema = z.object({
+  email: z.string().email(),
+  password: z.string(),
+});
+
+/**
+ * Sign up new user
+ */
+export async function signup(req: NextRequest): Promise<NextResponse> {
+  try {
+    const body = await req.json();
+    const { email, password, fullName } = SignupSchema.parse(body);
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+        },
+      },
+    });
+
+    if (error) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({
+      user: data.user,
+      session: data.session,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: error.errors },
+        { status: 400 }
+      );
+    }
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Login user
+ */
+export async function login(req: NextRequest): Promise<NextResponse> {
+  try {
+    const body = await req.json();
+    const { email, password } = LoginSchema.parse(body);
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 401 }
+      );
+    }
+
+    return NextResponse.json({
+      user: data.user,
+      session: data.session,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: error.errors },
+        { status: 400 }
+      );
+    }
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Get current user profile
+ */
+export async function getProfile(userId: string): Promise<NextResponse> {
+  try {
+    const profile = await prisma.profile.findUnique({
+      where: { userId },
+      include: {
+        workspaceMembers: {
+          include: {
+            workspace: true,
+          },
+        },
+      },
+    });
+
+    if (!profile) {
+      return NextResponse.json(
+        { error: 'Profile not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ profile });
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Create new workspace
+ */
+export async function createWorkspace(
+  userId: string,
+  data: { name: string; slug: string }
+): Promise<NextResponse> {
+  try {
+    const profile = await prisma.profile.findUnique({
+      where: { userId },
+    });
+
+    if (!profile) {
+      return NextResponse.json(
+        { error: 'Profile not found' },
+        { status: 404 }
+      );
+    }
+
+    const workspace = await prisma.workspace.create({
+      data: {
+        name: data.name,
+        slug: data.slug,
+        ownerId: profile.id,
+        plan: 'starter',
+        agentLimit: 3,
+        members: {
+          create: {
+            profileId: profile.id,
+            role: 'owner',
+          },
+        },
+      },
+    });
+
+    return NextResponse.json({ workspace });
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+

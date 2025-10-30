@@ -1,0 +1,303 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@icon48/db';
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+  apiVersion: '2024-11-20.acacia',
+});
+
+const PLAN_CONFIGS = {
+  starter: {
+    agentLimit: 3,
+    priceId: process.env.STRIPE_STARTER_PRICE_ID || '',
+  },
+  pro: {
+    agentLimit: 8,
+    priceId: process.env.STRIPE_PRO_PRICE_ID || '',
+  },
+  enterprise: {
+    agentLimit: 999,
+    priceId: process.env.STRIPE_ENTERPRISE_PRICE_ID || '',
+  },
+};
+
+/**
+ * Create Stripe checkout session for subscription
+ */
+export async function createCheckoutSession(
+  workspaceId: string,
+  plan: 'starter' | 'pro' | 'enterprise'
+): Promise<NextResponse> {
+  try {
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+    });
+
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Workspace not found' },
+        { status: 404 }
+      );
+    }
+
+    const config = PLAN_CONFIGS[plan];
+    
+    const session = await stripe.checkout.sessions.create({
+      customer: workspace.stripeCustomerId || undefined,
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price: config.priceId,
+          quantity: 1,
+        },
+      ],
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing?success=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing?canceled=true`,
+      metadata: {
+        workspaceId,
+        plan,
+      },
+    });
+
+    return NextResponse.json({ url: session.url });
+  } catch (error) {
+    console.error('Stripe checkout error:', error);
+    return NextResponse.json(
+      { error: 'Failed to create checkout session' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Handle Stripe webhook events
+ */
+export async function handleStripeWebhook(
+  req: NextRequest
+): Promise<NextResponse> {
+  const signature = req.headers.get('stripe-signature');
+  
+  if (!signature) {
+    return NextResponse.json(
+      { error: 'Missing signature' },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const body = await req.text();
+    const event = stripe.webhooks.constructEvent(
+      body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET || ''
+    );
+
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        await handleCheckoutCompleted(session);
+        break;
+      }
+
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object as Stripe.Subscription;
+        await handleSubscriptionUpdated(subscription);
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object as Stripe.Subscription;
+        await handleSubscriptionDeleted(subscription);
+        break;
+      }
+
+      case 'invoice.paid': {
+        const invoice = event.data.object as Stripe.Invoice;
+        await handleInvoicePaid(invoice);
+        break;
+      }
+
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object as Stripe.Invoice;
+        await handleInvoiceFailed(invoice);
+        break;
+      }
+    }
+
+    return NextResponse.json({ received: true });
+  } catch (error) {
+    console.error('Webhook error:', error);
+    return NextResponse.json(
+      { error: 'Webhook processing failed' },
+      { status: 400 }
+    );
+  }
+}
+
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  const { workspaceId, plan } = session.metadata || {};
+  
+  if (!workspaceId || !plan) return;
+
+  const config = PLAN_CONFIGS[plan as keyof typeof PLAN_CONFIGS];
+
+  await prisma.workspace.update({
+    where: { id: workspaceId },
+    data: {
+      stripeCustomerId: session.customer as string,
+      stripeSubscriptionId: session.subscription as string,
+      plan,
+      agentLimit: config.agentLimit,
+    },
+  });
+
+  await prisma.billingEvent.create({
+    data: {
+      workspaceId,
+      eventType: 'subscription.created',
+      stripeEventId: session.id,
+      amount: (session.amount_total || 0) / 100,
+      currency: session.currency?.toUpperCase(),
+      status: session.payment_status,
+      metadata: session as any,
+    },
+  });
+}
+
+async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
+  const workspace = await prisma.workspace.findFirst({
+    where: { stripeSubscriptionId: subscription.id },
+  });
+
+  if (!workspace) return;
+
+  // Determine plan from price ID
+  let plan = 'starter';
+  let agentLimit = 3;
+
+  for (const [planName, config] of Object.entries(PLAN_CONFIGS)) {
+    if (subscription.items.data.some(item => item.price.id === config.priceId)) {
+      plan = planName;
+      agentLimit = config.agentLimit;
+      break;
+    }
+  }
+
+  await prisma.workspace.update({
+    where: { id: workspace.id },
+    data: { plan, agentLimit },
+  });
+
+  await prisma.billingEvent.create({
+    data: {
+      workspaceId: workspace.id,
+      eventType: 'subscription.updated',
+      stripeEventId: subscription.id,
+      status: subscription.status,
+      metadata: subscription as any,
+    },
+  });
+}
+
+async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
+  const workspace = await prisma.workspace.findFirst({
+    where: { stripeSubscriptionId: subscription.id },
+  });
+
+  if (!workspace) return;
+
+  await prisma.workspace.update({
+    where: { id: workspace.id },
+    data: {
+      plan: 'starter',
+      agentLimit: 3,
+      stripeSubscriptionId: null,
+    },
+  });
+
+  await prisma.billingEvent.create({
+    data: {
+      workspaceId: workspace.id,
+      eventType: 'subscription.deleted',
+      stripeEventId: subscription.id,
+      status: subscription.status,
+      metadata: subscription as any,
+    },
+  });
+}
+
+async function handleInvoicePaid(invoice: Stripe.Invoice) {
+  const workspace = await prisma.workspace.findFirst({
+    where: { stripeCustomerId: invoice.customer as string },
+  });
+
+  if (!workspace) return;
+
+  await prisma.billingEvent.create({
+    data: {
+      workspaceId: workspace.id,
+      eventType: 'invoice.paid',
+      stripeEventId: invoice.id,
+      amount: (invoice.amount_paid || 0) / 100,
+      currency: invoice.currency?.toUpperCase(),
+      status: 'paid',
+      metadata: invoice as any,
+    },
+  });
+}
+
+async function handleInvoiceFailed(invoice: Stripe.Invoice) {
+  const workspace = await prisma.workspace.findFirst({
+    where: { stripeCustomerId: invoice.customer as string },
+  });
+
+  if (!workspace) return;
+
+  await prisma.billingEvent.create({
+    data: {
+      workspaceId: workspace.id,
+      eventType: 'invoice.payment_failed',
+      stripeEventId: invoice.id,
+      amount: (invoice.amount_due || 0) / 100,
+      currency: invoice.currency?.toUpperCase(),
+      status: 'failed',
+      metadata: invoice as any,
+    },
+  });
+}
+
+/**
+ * Get billing portal URL
+ */
+export async function createPortalSession(
+  workspaceId: string
+): Promise<NextResponse> {
+  try {
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+    });
+
+    if (!workspace?.stripeCustomerId) {
+      return NextResponse.json(
+        { error: 'No billing account found' },
+        { status: 404 }
+      );
+    }
+
+    const session = await stripe.billingPortal.sessions.create({
+      customer: workspace.stripeCustomerId,
+      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing`,
+    });
+
+    return NextResponse.json({ url: session.url });
+  } catch (error) {
+    console.error('Portal session error:', error);
+    return NextResponse.json(
+      { error: 'Failed to create portal session' },
+      { status: 500 }
+    );
+  }
+}
+
+

@@ -1,0 +1,68 @@
+{
+    "product": "ICON48",
+    "description": "Autonomous enterprise OS that automates and scales businesses through AI agents and workflows.",
+    "plans": [
+      {"id": "starter", "agents_max": 3, "workflows_daily": 10, "price_usd": 79.99},
+      {"id": "pro", "agents_max": 8, "workflows_daily": 999999, "price_usd": 279.99},
+      {"id": "enterprise", "agents_max": 999, "workflows_daily": 999999, "price_usd": 459.00}
+    ],
+    "modules": [
+      {
+        "name": "auth",
+        "features": ["email signup/login", "RLS per workspace", "Supabase Auth"],
+        "tables": ["profiles", "workspaces", "workspace_members"],
+        "routes": ["/login", "/signup", "/settings/security"]
+      },
+      {
+        "name": "billing",
+        "features": ["Stripe subscriptions", "Webhook sync to Supabase", "Plan enforcement"],
+        "tables": ["billing_events"],
+        "routes": ["/billing"]
+      },
+      {
+        "name": "workflows",
+        "features": ["CRUD", "Run via n8n API", "Store logs and cost"],
+        "tables": ["workflows", "workflow_runs"],
+        "routes": ["/workflows", "/workflows/[id]", "/workflows/[id]/run"]
+      },
+      {
+        "name": "agents",
+        "features": ["Register/manage AI tools", "Secure key storage in Vault"],
+        "tables": ["agents", "agent_tasks"],
+        "routes": ["/agents"]
+      },
+      {
+        "name": "analytics",
+        "features": ["Run metrics", "Spend tracking", "PostHog telemetry"],
+        "tables": ["metrics"],
+        "routes": ["/dashboard", "/api/metrics"]
+      },
+      {
+        "name": "admin",
+        "features": ["Manage users", "Manual plan override", "System logs"],
+        "tables": ["admin_logs"],
+        "routes": ["/admin", "/api/admin"]
+      }
+    ],
+    "integrations": {
+      "n8n": "workflow execution + 400 integrations",
+      "openai": "AI task logic",
+      "stripe": "billing and plan control",
+      "supabase": "auth + database + vault",
+      "posthog": "analytics + usage tracking"
+    },
+    "non_functional": {
+      "security": {"rls": true, "vault": true, "ssl": true},
+      "performance": {"lighthouse_min": 90},
+      "limits": {"task_timeout_sec": 60},
+      "testing": ["typecheck", "lint", "unit", "integration"]
+    },
+    "deployment": {
+      "backend": "Supabase (DB + Functions)",
+      "api": "Vercel or Supabase Edge Functions",
+      "workflow_runner": "n8n Docker container",
+      "frontend": "Lovable",
+      "analytics": "PostHog"
+    }
+  }
+  

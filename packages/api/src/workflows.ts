@@ -1,0 +1,365 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@icon48/db';
+import { z } from 'zod';
+import { executeWorkflow } from '@icon48/agents';
+
+const CreateWorkflowSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  triggerType: z.enum(['manual', 'scheduled', 'webhook']),
+  config: z.record(z.any()).optional(),
+});
+
+const UpdateWorkflowSchema = CreateWorkflowSchema.partial();
+
+/**
+ * List all workflows for a workspace
+ */
+export async function listWorkflows(
+  workspaceId: string
+): Promise<NextResponse> {
+  try {
+    const workflows = await prisma.workflow.findMany({
+      where: { workspaceId },
+      include: {
+        runs: {
+          take: 5,
+          orderBy: { startedAt: 'desc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return NextResponse.json({ workflows });
+  } catch (error) {
+    console.error('List workflows error:', error);
+    return NextResponse.json(
+      { error: 'Failed to list workflows' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Get workflow by ID
+ */
+export async function getWorkflow(
+  workspaceId: string,
+  workflowId: string
+): Promise<NextResponse> {
+  try {
+    const workflow = await prisma.workflow.findFirst({
+      where: {
+        id: workflowId,
+        workspaceId,
+      },
+      include: {
+        runs: {
+          take: 20,
+          orderBy: { startedAt: 'desc' },
+        },
+      },
+    });
+
+    if (!workflow) {
+      return NextResponse.json(
+        { error: 'Workflow not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ workflow });
+  } catch (error) {
+    console.error('Get workflow error:', error);
+    return NextResponse.json(
+      { error: 'Failed to get workflow' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Create new workflow
+ */
+export async function createWorkflow(
+  workspaceId: string,
+  data: z.infer<typeof CreateWorkflowSchema>
+): Promise<NextResponse> {
+  try {
+    const validated = CreateWorkflowSchema.parse(data);
+
+    const workflow = await prisma.workflow.create({
+      data: {
+        workspaceId,
+        name: validated.name,
+        description: validated.description,
+        triggerType: validated.triggerType,
+        config: validated.config || {},
+        active: true,
+      },
+    });
+
+    return NextResponse.json({ workflow }, { status: 201 });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: error.errors },
+        { status: 400 }
+      );
+    }
+    console.error('Create workflow error:', error);
+    return NextResponse.json(
+      { error: 'Failed to create workflow' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Update workflow
+ */
+export async function updateWorkflow(
+  workspaceId: string,
+  workflowId: string,
+  data: z.infer<typeof UpdateWorkflowSchema>
+): Promise<NextResponse> {
+  try {
+    const validated = UpdateWorkflowSchema.parse(data);
+
+    const workflow = await prisma.workflow.findFirst({
+      where: {
+        id: workflowId,
+        workspaceId,
+      },
+    });
+
+    if (!workflow) {
+      return NextResponse.json(
+        { error: 'Workflow not found' },
+        { status: 404 }
+      );
+    }
+
+    const updated = await prisma.workflow.update({
+      where: { id: workflowId },
+      data: validated,
+    });
+
+    return NextResponse.json({ workflow: updated });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: error.errors },
+        { status: 400 }
+      );
+    }
+    console.error('Update workflow error:', error);
+    return NextResponse.json(
+      { error: 'Failed to update workflow' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Delete workflow
+ */
+export async function deleteWorkflow(
+  workspaceId: string,
+  workflowId: string
+): Promise<NextResponse> {
+  try {
+    const workflow = await prisma.workflow.findFirst({
+      where: {
+        id: workflowId,
+        workspaceId,
+      },
+    });
+
+    if (!workflow) {
+      return NextResponse.json(
+        { error: 'Workflow not found' },
+        { status: 404 }
+      );
+    }
+
+    await prisma.workflow.delete({
+      where: { id: workflowId },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Delete workflow error:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete workflow' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Clone workflow
+ */
+export async function cloneWorkflow(
+  workspaceId: string,
+  workflowId: string
+): Promise<NextResponse> {
+  try {
+    const workflow = await prisma.workflow.findFirst({
+      where: {
+        id: workflowId,
+        workspaceId,
+      },
+    });
+
+    if (!workflow) {
+      return NextResponse.json(
+        { error: 'Workflow not found' },
+        { status: 404 }
+      );
+    }
+
+    const cloned = await prisma.workflow.create({
+      data: {
+        workspaceId,
+        name: `${workflow.name} (Copy)`,
+        description: workflow.description,
+        triggerType: workflow.triggerType,
+        config: workflow.config,
+        active: false,
+      },
+    });
+
+    return NextResponse.json({ workflow: cloned }, { status: 201 });
+  } catch (error) {
+    console.error('Clone workflow error:', error);
+    return NextResponse.json(
+      { error: 'Failed to clone workflow' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Execute workflow
+ */
+export async function runWorkflow(
+  workspaceId: string,
+  workflowId: string,
+  input?: Record<string, any>
+): Promise<NextResponse> {
+  try {
+    const workflow = await prisma.workflow.findFirst({
+      where: {
+        id: workflowId,
+        workspaceId,
+      },
+    });
+
+    if (!workflow) {
+      return NextResponse.json(
+        { error: 'Workflow not found' },
+        { status: 404 }
+      );
+    }
+
+    if (!workflow.active) {
+      return NextResponse.json(
+        { error: 'Workflow is not active' },
+        { status: 400 }
+      );
+    }
+
+    // Check daily run limit based on plan
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+    });
+
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Workspace not found' },
+        { status: 404 }
+      );
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayRuns = await prisma.workflowRun.count({
+      where: {
+        workflow: { workspaceId },
+        startedAt: { gte: today },
+      },
+    });
+
+    const limits: Record<string, number> = {
+      starter: 10,
+      pro: 999999,
+      enterprise: 999999,
+    };
+
+    if (todayRuns >= limits[workspace.plan]) {
+      return NextResponse.json(
+        { error: 'Daily workflow run limit exceeded' },
+        { status: 429 }
+      );
+    }
+
+    // Create run record
+    const run = await prisma.workflowRun.create({
+      data: {
+        workflowId,
+        status: 'running',
+        input: input || {},
+      },
+    });
+
+    // Execute workflow asynchronously
+    executeWorkflow(workflow, run.id, input).catch(console.error);
+
+    return NextResponse.json({ run }, { status: 202 });
+  } catch (error) {
+    console.error('Run workflow error:', error);
+    return NextResponse.json(
+      { error: 'Failed to run workflow' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Get workflow run details
+ */
+export async function getWorkflowRun(
+  workspaceId: string,
+  runId: string
+): Promise<NextResponse> {
+  try {
+    const run = await prisma.workflowRun.findFirst({
+      where: {
+        id: runId,
+        workflow: { workspaceId },
+      },
+      include: {
+        workflow: true,
+      },
+    });
+
+    if (!run) {
+      return NextResponse.json(
+        { error: 'Run not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ run });
+  } catch (error) {
+    console.error('Get workflow run error:', error);
+    return NextResponse.json(
+      { error: 'Failed to get run' },
+      { status: 500 }
+    );
+  }
+}
+
+

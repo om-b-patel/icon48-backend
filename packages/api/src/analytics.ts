@@ -1,0 +1,205 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@icon48/db';
+
+/**
+ * Get analytics metrics for a workspace
+ */
+export async function getMetrics(
+  workspaceId: string,
+  days: number = 30
+): Promise<NextResponse> {
+  try {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    // Get historical metrics
+    const metrics = await prisma.metric.findMany({
+      where: {
+        workspaceId,
+        date: { gte: startDate },
+      },
+      orderBy: { date: 'desc' },
+    });
+
+    // Calculate today's metrics
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayRuns = await prisma.workflowRun.findMany({
+      where: {
+        workflow: { workspaceId },
+        startedAt: { gte: today },
+      },
+    });
+
+    const completedRuns = todayRuns.filter(r => r.status === 'completed');
+    const failedRuns = todayRuns.filter(r => r.status === 'failed');
+
+    const runsToday = todayRuns.length;
+    const successRate = runsToday > 0
+      ? (completedRuns.length / runsToday) * 100
+      : 0;
+    const spendToday = todayRuns.reduce((sum, run) => sum + run.costUsd, 0);
+
+    const activeAgents = await prisma.agent.count({
+      where: {
+        workspaceId,
+        active: true,
+      },
+    });
+
+    // Store today's metrics
+    await prisma.metric.upsert({
+      where: {
+        workspaceId_date: {
+          workspaceId,
+          date: today,
+        },
+      },
+      update: {
+        runsToday,
+        successRate,
+        spendToday,
+        activeAgents,
+      },
+      create: {
+        workspaceId,
+        date: today,
+        runsToday,
+        successRate,
+        spendToday,
+        activeAgents,
+      },
+    });
+
+    // Calculate totals
+    const totalRuns = await prisma.workflowRun.count({
+      where: { workflow: { workspaceId } },
+    });
+
+    const totalSpend = await prisma.workflowRun.aggregate({
+      where: { workflow: { workspaceId } },
+      _sum: { costUsd: true },
+    });
+
+    const avgRunDuration = await prisma.workflowRun.aggregate({
+      where: {
+        workflow: { workspaceId },
+        status: 'completed',
+        durationMs: { not: null },
+      },
+      _avg: { durationMs: true },
+    });
+
+    return NextResponse.json({
+      current: {
+        runsToday,
+        successRate,
+        spendToday,
+        activeAgents,
+      },
+      history: metrics,
+      totals: {
+        totalRuns,
+        totalSpend: totalSpend._sum.costUsd || 0,
+        avgDurationMs: avgRunDuration._avg.durationMs || 0,
+      },
+      recentRuns: todayRuns.slice(0, 10),
+    });
+  } catch (error) {
+    console.error('Get metrics error:', error);
+    return NextResponse.json(
+      { error: 'Failed to get metrics' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Get workflow analytics
+ */
+export async function getWorkflowAnalytics(
+  workspaceId: string,
+  workflowId: string
+): Promise<NextResponse> {
+  try {
+    const runs = await prisma.workflowRun.findMany({
+      where: {
+        workflowId,
+        workflow: { workspaceId },
+      },
+      orderBy: { startedAt: 'desc' },
+      take: 100,
+    });
+
+    const totalRuns = runs.length;
+    const completed = runs.filter(r => r.status === 'completed').length;
+    const failed = runs.filter(r => r.status === 'failed').length;
+    const successRate = totalRuns > 0 ? (completed / totalRuns) * 100 : 0;
+
+    const totalCost = runs.reduce((sum, run) => sum + run.costUsd, 0);
+    const avgCost = totalRuns > 0 ? totalCost / totalRuns : 0;
+
+    const completedRuns = runs.filter(r => r.durationMs !== null);
+    const avgDuration = completedRuns.length > 0
+      ? completedRuns.reduce((sum, run) => sum + (run.durationMs || 0), 0) / completedRuns.length
+      : 0;
+
+    return NextResponse.json({
+      workflowId,
+      totalRuns,
+      completed,
+      failed,
+      successRate,
+      totalCost,
+      avgCost,
+      avgDuration,
+      recentRuns: runs.slice(0, 20),
+    });
+  } catch (error) {
+    console.error('Get workflow analytics error:', error);
+    return NextResponse.json(
+      { error: 'Failed to get workflow analytics' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Track event to PostHog
+ */
+export async function trackEvent(
+  userId: string,
+  event: string,
+  properties?: Record<string, any>
+): Promise<void> {
+  try {
+    const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://app.posthog.com';
+
+    if (!posthogKey) {
+      console.warn('PostHog key not configured');
+      return;
+    }
+
+    await fetch(`${posthogHost}/capture/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        api_key: posthogKey,
+        event,
+        properties: {
+          distinct_id: userId,
+          ...properties,
+        },
+        timestamp: new Date().toISOString(),
+      }),
+    });
+  } catch (error) {
+    console.error('PostHog tracking error:', error);
+  }
+}
+
+

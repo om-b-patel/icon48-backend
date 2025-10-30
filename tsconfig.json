@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "incremental": true,
+    "baseUrl": ".",
+    "paths": {
+      "@icon48/api/*": ["./packages/api/src/*"],
+      "@icon48/db": ["./packages/db/src"],
+      "@icon48/agents": ["./packages/agents/src"]
+    }
+  },
+  "exclude": ["node_modules", "dist", ".next"]
+}
+
+

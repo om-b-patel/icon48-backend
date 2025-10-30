@@ -1,0 +1,295 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@icon48/db';
+
+/**
+ * List all users (admin only)
+ */
+export async function listUsers(
+  page: number = 1,
+  limit: number = 50
+): Promise<NextResponse> {
+  try {
+    const skip = (page - 1) * limit;
+
+    const [users, total] = await Promise.all([
+      prisma.profile.findMany({
+        skip,
+        take: limit,
+        include: {
+          workspaceMembers: {
+            include: {
+              workspace: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.profile.count(),
+    ]);
+
+    return NextResponse.json({
+      users,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error('List users error:', error);
+    return NextResponse.json(
+      { error: 'Failed to list users' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Get user details (admin only)
+ */
+export async function getUserDetails(
+  userId: string
+): Promise<NextResponse> {
+  try {
+    const profile = await prisma.profile.findUnique({
+      where: { id: userId },
+      include: {
+        workspaceMembers: {
+          include: {
+            workspace: {
+              include: {
+                workflows: true,
+                agents: true,
+                metrics: {
+                  take: 30,
+                  orderBy: { date: 'desc' },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!profile) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ user: profile });
+  } catch (error) {
+    console.error('Get user details error:', error);
+    return NextResponse.json(
+      { error: 'Failed to get user details' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Update user plan manually (admin only)
+ */
+export async function updateWorkspacePlan(
+  adminId: string,
+  workspaceId: string,
+  plan: 'starter' | 'pro' | 'enterprise',
+  agentLimit?: number
+): Promise<NextResponse> {
+  try {
+    const limits: Record<string, number> = {
+      starter: 3,
+      pro: 8,
+      enterprise: agentLimit || 999,
+    };
+
+    const workspace = await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: {
+        plan,
+        agentLimit: limits[plan],
+      },
+    });
+
+    // Log admin action
+    await prisma.adminLog.create({
+      data: {
+        adminId,
+        action: 'update_workspace_plan',
+        targetId: workspaceId,
+        details: {
+          plan,
+          agentLimit: limits[plan],
+        },
+      },
+    });
+
+    return NextResponse.json({ workspace });
+  } catch (error) {
+    console.error('Update workspace plan error:', error);
+    return NextResponse.json(
+      { error: 'Failed to update workspace plan' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Get system statistics (admin only)
+ */
+export async function getSystemStats(): Promise<NextResponse> {
+  try {
+    const [
+      totalUsers,
+      totalWorkspaces,
+      totalWorkflows,
+      totalAgents,
+      totalRuns,
+      activeSubscriptions,
+    ] = await Promise.all([
+      prisma.profile.count(),
+      prisma.workspace.count(),
+      prisma.workflow.count(),
+      prisma.agent.count({ where: { active: true } }),
+      prisma.workflowRun.count(),
+      prisma.workspace.count({
+        where: {
+          stripeSubscriptionId: { not: null },
+        },
+      }),
+    ]);
+
+    const planDistribution = await prisma.workspace.groupBy({
+      by: ['plan'],
+      _count: true,
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayRuns = await prisma.workflowRun.count({
+      where: { startedAt: { gte: today } },
+    });
+
+    const todayRevenue = await prisma.billingEvent.aggregate({
+      where: {
+        createdAt: { gte: today },
+        eventType: 'invoice.paid',
+      },
+      _sum: { amount: true },
+    });
+
+    const recentErrors = await prisma.workflowRun.findMany({
+      where: {
+        status: 'failed',
+        error: { not: null },
+      },
+      take: 20,
+      orderBy: { startedAt: 'desc' },
+      include: {
+        workflow: {
+          include: {
+            workspace: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      totals: {
+        users: totalUsers,
+        workspaces: totalWorkspaces,
+        workflows: totalWorkflows,
+        agents: totalAgents,
+        runs: totalRuns,
+        activeSubscriptions,
+      },
+      planDistribution,
+      today: {
+        runs: todayRuns,
+        revenue: todayRevenue._sum.amount || 0,
+      },
+      recentErrors,
+    });
+  } catch (error) {
+    console.error('Get system stats error:', error);
+    return NextResponse.json(
+      { error: 'Failed to get system stats' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Get admin logs (admin only)
+ */
+export async function getAdminLogs(
+  page: number = 1,
+  limit: number = 50
+): Promise<NextResponse> {
+  try {
+    const skip = (page - 1) * limit;
+
+    const [logs, total] = await Promise.all([
+      prisma.adminLog.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.adminLog.count(),
+    ]);
+
+    return NextResponse.json({
+      logs,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error('Get admin logs error:', error);
+    return NextResponse.json(
+      { error: 'Failed to get admin logs' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Toggle user admin status (admin only)
+ */
+export async function toggleUserAdmin(
+  adminId: string,
+  userId: string,
+  admin: boolean
+): Promise<NextResponse> {
+  try {
+    const profile = await prisma.profile.update({
+      where: { id: userId },
+      data: { admin },
+    });
+
+    await prisma.adminLog.create({
+      data: {
+        adminId,
+        action: 'toggle_user_admin',
+        targetId: userId,
+        details: { admin },
+      },
+    });
+
+    return NextResponse.json({ profile });
+  } catch (error) {
+    console.error('Toggle user admin error:', error);
+    return NextResponse.json(
+      { error: 'Failed to toggle user admin' },
+      { status: 500 }
+    );
+  }
+}
+
+

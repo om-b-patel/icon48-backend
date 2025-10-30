@@ -1,0 +1,351 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma, supabase } from '@icon48/db';
+import { z } from 'zod';
+
+const CreateAgentSchema = z.object({
+  name: z.string().min(1),
+  type: z.enum(['openai', 'notion', 'gmail', 'slack', 'sheets', 'custom']),
+  description: z.string().optional(),
+  config: z.record(z.any()).optional(),
+});
+
+const UpdateAgentSchema = CreateAgentSchema.partial();
+
+/**
+ * List all agents for a workspace
+ */
+export async function listAgents(
+  workspaceId: string
+): Promise<NextResponse> {
+  try {
+    const agents = await prisma.agent.findMany({
+      where: { workspaceId },
+      include: {
+        tasks: {
+          take: 5,
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return NextResponse.json({ agents });
+  } catch (error) {
+    console.error('List agents error:', error);
+    return NextResponse.json(
+      { error: 'Failed to list agents' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Get agent by ID
+ */
+export async function getAgent(
+  workspaceId: string,
+  agentId: string
+): Promise<NextResponse> {
+  try {
+    const agent = await prisma.agent.findFirst({
+      where: {
+        id: agentId,
+        workspaceId,
+      },
+      include: {
+        tasks: {
+          take: 20,
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!agent) {
+      return NextResponse.json(
+        { error: 'Agent not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ agent });
+  } catch (error) {
+    console.error('Get agent error:', error);
+    return NextResponse.json(
+      { error: 'Failed to get agent' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Create new agent
+ */
+export async function createAgent(
+  workspaceId: string,
+  data: z.infer<typeof CreateAgentSchema>
+): Promise<NextResponse> {
+  try {
+    const validated = CreateAgentSchema.parse(data);
+
+    // Check agent limit for workspace
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      include: {
+        agents: { where: { active: true } },
+      },
+    });
+
+    if (!workspace) {
+      return NextResponse.json(
+        { error: 'Workspace not found' },
+        { status: 404 }
+      );
+    }
+
+    if (workspace.agents.length >= workspace.agentLimit) {
+      return NextResponse.json(
+        { 
+          error: `Agent limit reached. Your ${workspace.plan} plan allows ${workspace.agentLimit} agents.`,
+          limit: workspace.agentLimit,
+          current: workspace.agents.length,
+        },
+        { status: 403 }
+      );
+    }
+
+    // Store sensitive config in Supabase Vault if provided
+    let configVaultId: string | undefined;
+    if (validated.config) {
+      const vaultKey = `agent_config_${workspaceId}_${Date.now()}`;
+      
+      const { error } = await supabase
+        .from('vault')
+        .insert({
+          name: vaultKey,
+          secret: JSON.stringify(validated.config),
+        });
+
+      if (!error) {
+        configVaultId = vaultKey;
+      }
+    }
+
+    const agent = await prisma.agent.create({
+      data: {
+        workspaceId,
+        name: validated.name,
+        type: validated.type,
+        description: validated.description,
+        configVaultId,
+        active: true,
+      },
+    });
+
+    return NextResponse.json({ agent }, { status: 201 });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: error.errors },
+        { status: 400 }
+      );
+    }
+    console.error('Create agent error:', error);
+    return NextResponse.json(
+      { error: 'Failed to create agent' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Update agent
+ */
+export async function updateAgent(
+  workspaceId: string,
+  agentId: string,
+  data: z.infer<typeof UpdateAgentSchema>
+): Promise<NextResponse> {
+  try {
+    const validated = UpdateAgentSchema.parse(data);
+
+    const agent = await prisma.agent.findFirst({
+      where: {
+        id: agentId,
+        workspaceId,
+      },
+    });
+
+    if (!agent) {
+      return NextResponse.json(
+        { error: 'Agent not found' },
+        { status: 404 }
+      );
+    }
+
+    // Update vault if config provided
+    if (validated.config && agent.configVaultId) {
+      await supabase
+        .from('vault')
+        .update({ secret: JSON.stringify(validated.config) })
+        .eq('name', agent.configVaultId);
+    }
+
+    const updated = await prisma.agent.update({
+      where: { id: agentId },
+      data: {
+        name: validated.name,
+        type: validated.type,
+        description: validated.description,
+      },
+    });
+
+    return NextResponse.json({ agent: updated });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: error.errors },
+        { status: 400 }
+      );
+    }
+    console.error('Update agent error:', error);
+    return NextResponse.json(
+      { error: 'Failed to update agent' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Delete agent
+ */
+export async function deleteAgent(
+  workspaceId: string,
+  agentId: string
+): Promise<NextResponse> {
+  try {
+    const agent = await prisma.agent.findFirst({
+      where: {
+        id: agentId,
+        workspaceId,
+      },
+    });
+
+    if (!agent) {
+      return NextResponse.json(
+        { error: 'Agent not found' },
+        { status: 404 }
+      );
+    }
+
+    // Delete vault entry if exists
+    if (agent.configVaultId) {
+      await supabase
+        .from('vault')
+        .delete()
+        .eq('name', agent.configVaultId);
+    }
+
+    await prisma.agent.delete({
+      where: { id: agentId },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Delete agent error:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete agent' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Execute agent task
+ */
+export async function executeAgentTask(
+  workspaceId: string,
+  agentId: string,
+  taskType: string,
+  input: Record<string, any>
+): Promise<NextResponse> {
+  try {
+    const agent = await prisma.agent.findFirst({
+      where: {
+        id: agentId,
+        workspaceId,
+      },
+    });
+
+    if (!agent) {
+      return NextResponse.json(
+        { error: 'Agent not found' },
+        { status: 404 }
+      );
+    }
+
+    if (!agent.active) {
+      return NextResponse.json(
+        { error: 'Agent is not active' },
+        { status: 400 }
+      );
+    }
+
+    const task = await prisma.agentTask.create({
+      data: {
+        agentId,
+        taskType,
+        input,
+        status: 'pending',
+      },
+    });
+
+    // Execute task asynchronously
+    // This would integrate with OpenAI, LangChain, etc.
+    // For now, just return the task
+    
+    return NextResponse.json({ task }, { status: 202 });
+  } catch (error) {
+    console.error('Execute agent task error:', error);
+    return NextResponse.json(
+      { error: 'Failed to execute task' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Get agent task details
+ */
+export async function getAgentTask(
+  workspaceId: string,
+  taskId: string
+): Promise<NextResponse> {
+  try {
+    const task = await prisma.agentTask.findFirst({
+      where: {
+        id: taskId,
+        agent: { workspaceId },
+      },
+      include: {
+        agent: true,
+      },
+    });
+
+    if (!task) {
+      return NextResponse.json(
+        { error: 'Task not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ task });
+  } catch (error) {
+    console.error('Get agent task error:', error);
+    return NextResponse.json(
+      { error: 'Failed to get task' },
+      { status: 500 }
+    );
+  }
+}
+
+

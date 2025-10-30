@@ -1,0 +1,138 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma, supabase } from '@icon48/db';
+
+export interface AuthContext {
+  userId: string;
+  profileId: string;
+  workspaceId?: string;
+  isAdmin: boolean;
+}
+
+/**
+ * Middleware to authenticate requests using Supabase Auth
+ */
+export async function withAuth(
+  req: NextRequest,
+  handler: (req: NextRequest, ctx: AuthContext) => Promise<NextResponse>
+): Promise<NextResponse> {
+  const authHeader = req.headers.get('authorization');
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
+  const token = authHeader.substring(7);
+  
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+
+  if (error || !user) {
+    return NextResponse.json(
+      { error: 'Invalid token' },
+      { status: 401 }
+    );
+  }
+
+  const profile = await prisma.profile.findUnique({
+    where: { userId: user.id },
+  });
+
+  if (!profile) {
+    return NextResponse.json(
+      { error: 'Profile not found' },
+      { status: 404 }
+    );
+  }
+
+  const ctx: AuthContext = {
+    userId: user.id,
+    profileId: profile.id,
+    isAdmin: profile.admin,
+  };
+
+  return handler(req, ctx);
+}
+
+/**
+ * Middleware to check if user is admin
+ */
+export async function requireAdmin(
+  req: NextRequest,
+  handler: (req: NextRequest, ctx: AuthContext) => Promise<NextResponse>
+): Promise<NextResponse> {
+  return withAuth(req, async (req, ctx) => {
+    if (!ctx.isAdmin) {
+      return NextResponse.json(
+        { error: 'Admin access required' },
+        { status: 403 }
+      );
+    }
+    return handler(req, ctx);
+  });
+}
+
+/**
+ * Middleware to validate workspace access
+ */
+export async function withWorkspace(
+  req: NextRequest,
+  workspaceId: string,
+  handler: (req: NextRequest, ctx: AuthContext) => Promise<NextResponse>
+): Promise<NextResponse> {
+  return withAuth(req, async (req, ctx) => {
+    const member = await prisma.workspaceMember.findFirst({
+      where: {
+        workspaceId,
+        profileId: ctx.profileId,
+      },
+    });
+
+    if (!member) {
+      return NextResponse.json(
+        { error: 'Workspace access denied' },
+        { status: 403 }
+      );
+    }
+
+    ctx.workspaceId = workspaceId;
+    return handler(req, ctx);
+  });
+}
+
+/**
+ * Get workspace from request and validate access
+ */
+export async function getWorkspaceFromRequest(
+  req: NextRequest,
+  ctx: AuthContext
+): Promise<{ workspaceId: string } | NextResponse> {
+  const { searchParams } = new URL(req.url);
+  const workspaceId = searchParams.get('workspaceId');
+
+  if (!workspaceId) {
+    return NextResponse.json(
+      { error: 'workspaceId required' },
+      { status: 400 }
+    );
+  }
+
+  const member = await prisma.workspaceMember.findFirst({
+    where: {
+      workspaceId,
+      profileId: ctx.profileId,
+    },
+  });
+
+  if (!member) {
+    return NextResponse.json(
+      { error: 'Workspace access denied' },
+      { status: 403 }
+    );
+  }
+
+  return { workspaceId };
+}
+
+

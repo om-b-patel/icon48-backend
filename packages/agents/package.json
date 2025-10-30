@@ -1,0 +1,22 @@
+{
+  "name": "@icon48/agents",
+  "version": "1.0.0",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@icon48/db": "workspace:*",
+    "openai": "^4.20.0",
+    "langchain": "^0.1.0",
+    "@langchain/openai": "^0.0.14",
+    "axios": "^1.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3"
+  }
+}
+
+

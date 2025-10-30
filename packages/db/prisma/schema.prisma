@@ -1,0 +1,196 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// AUTHENTICATION & WORKSPACE MANAGEMENT
+// ============================================
+
+model Profile {
+  id         String   @id @default(uuid())
+  userId     String   @unique @map("user_id") // Supabase auth.users.id
+  email      String   @unique
+  fullName   String?  @map("full_name")
+  avatarUrl  String?  @map("avatar_url")
+  admin      Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  workspaceMembers WorkspaceMember[]
+  ownedWorkspaces  Workspace[]
+
+  @@map("profiles")
+}
+
+model Workspace {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  ownerId     String   @map("owner_id")
+  plan        String   @default("starter") // starter, pro, enterprise
+  stripeCustomerId String? @map("stripe_customer_id")
+  stripeSubscriptionId String? @map("stripe_subscription_id")
+  agentLimit  Int      @default(3) @map("agent_limit")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  owner    Profile           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  members  WorkspaceMember[]
+  workflows Workflow[]
+  agents   Agent[]
+  metrics  Metric[]
+  billingEvents BillingEvent[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  profileId   String   @map("profile_id")
+  role        String   @default("member") // owner, admin, member
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  profile   Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, profileId])
+  @@map("workspace_members")
+}
+
+// ============================================
+// BILLING
+// ============================================
+
+model BillingEvent {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  eventType   String   @map("event_type") // subscription.created, subscription.updated, invoice.paid
+  stripeEventId String @unique @map("stripe_event_id")
+  amount      Float?
+  currency    String?
+  status      String?
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("billing_events")
+}
+
+// ============================================
+// WORKFLOWS
+// ============================================
+
+model Workflow {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  name        String
+  description String?
+  n8nWorkflowId String? @map("n8n_workflow_id") // ID in n8n instance
+  triggerType String   @default("manual") @map("trigger_type") // manual, scheduled, webhook
+  config      Json     @default("{}")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  runs      WorkflowRun[]
+
+  @@map("workflows")
+}
+
+model WorkflowRun {
+  id          String   @id @default(uuid())
+  workflowId  String   @map("workflow_id")
+  status      String   @default("pending") // pending, running, completed, failed
+  input       Json?
+  output      Json?
+  error       String?
+  costUsd     Float    @default(0) @map("cost_usd")
+  durationMs  Int?     @map("duration_ms")
+  startedAt   DateTime @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@map("workflow_runs")
+}
+
+// ============================================
+// AGENTS
+// ============================================
+
+model Agent {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  name        String
+  type        String   // openai, notion, gmail, slack, sheets, custom
+  description String?
+  configVaultId String? @map("config_vault_id") // Reference to Supabase Vault
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks     AgentTask[]
+
+  @@map("agents")
+}
+
+model AgentTask {
+  id          String   @id @default(uuid())
+  agentId     String   @map("agent_id")
+  taskType    String   @map("task_type") // summarize, send_email, create_doc, etc.
+  input       Json
+  output      Json?
+  status      String   @default("pending") // pending, completed, failed
+  costUsd     Float    @default(0) @map("cost_usd")
+  createdAt   DateTime @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("agent_tasks")
+}
+
+// ============================================
+// ANALYTICS
+// ============================================
+
+model Metric {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  date        DateTime @default(now())
+  runsToday   Int      @default(0) @map("runs_today")
+  successRate Float    @default(0) @map("success_rate")
+  spendToday  Float    @default(0) @map("spend_today")
+  activeAgents Int     @default(0) @map("active_agents")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, date])
+  @@map("metrics")
+}
+
+// ============================================
+// ADMIN
+// ============================================
+
+model AdminLog {
+  id        String   @id @default(uuid())
+  adminId   String   @map("admin_id")
+  action    String
+  targetId  String?  @map("target_id")
+  details   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("admin_logs")
+}
+
+

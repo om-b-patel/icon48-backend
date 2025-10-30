@@ -45,6 +45,13 @@ app.listen(PORT, () => {
 });
 
 // Health check route
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'ICON48 backend live ✅', time: new Date() });
+
+// Enhanced Health Check Route (Server + DB)
+app.get('/health', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'ok', service: 'ICON48 backend live ✅', database: 'connected', time: new Date() });
+  } catch (err) {
+    res.status(500).json({ status: 'error', service: 'ICON48 backend ⚠️', database: 'unreachable', time: new Date(), error: err.message });
+  }
 });

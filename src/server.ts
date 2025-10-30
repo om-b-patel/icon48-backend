@@ -6,45 +6,46 @@ const prisma = new PrismaClient();
 
 app.use(express.json());
 
-// Enhanced Health Check Route (Server + DB latency)
+// ✅ Health check route
 app.get("/health", async (req, res) => {
   const start = Date.now();
   try {
-    const dbStart = Date.now();
     await prisma.$queryRaw`SELECT 1`;
-    const dbLatency = Date.now() - dbStart;
-
     res.json({
       status: "ok",
       service: "ICON48 backend live ✅",
-      database: {
-        status: "connected",
-        latencyMs: dbLatency,
-      },
-      responseTimeMs: Date.now() - start,
+      database: "connected",
+      responseMs: Date.now() - start,
       time: new Date(),
     });
   } catch (err) {
     res.status(500).json({
       status: "error",
-      service: "ICON48 backend ⚠️",
-      database: {
-        status: "unreachable",
-        latencyMs: null,
-      },
-      responseTimeMs: Date.now() - start,
+      service: "ICON48 backend ❌",
+      database: "unreachable",
       error: err instanceof Error ? err.message : String(err),
       time: new Date(),
     });
   }
 });
 
-// Root Route
+// ✅ Metrics route
+app.get("/api/metrics", async (req, res) => {
+  try {
+    const metrics = await prisma.metric.findMany();
+    res.json(metrics);
+  } catch (err) {
+    console.error("Error fetching metrics:", err);
+    res.status(500).json({ error: "Failed to fetch metrics" });
+  }
+});
+
+// ✅ Root route
 app.get("/", (req, res) => {
   res.send("ICON48 backend API running.");
 });
 
-// Start server
+// ✅ Start server
 app.listen(3000, () => {
   console.log("🚀 ICON48 backend running on port 3000");
 });

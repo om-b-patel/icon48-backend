@@ -43,3 +43,8 @@ app.use("/api/users", usersRoute);
 app.listen(PORT, () => {
   console.log(`✅ ICON48 API running on port ${PORT}`);
 });
+
+// Health check route
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'ICON48 backend live ✅', time: new Date() });
+});

@@ -4,22 +4,22 @@
   "private": true,
   "description": "ICON48 - Autonomous enterprise operating system backend",
   "engines": {
-    "node": ">=18.0.0",
-    "pnpm": ">=8.0.0"
+    "node": ">=18.0.0"
   },
   "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "lint": "turbo run lint",
-    "test": "turbo run test",
+    "dev": "ts-node src/server.ts",
+    "build": "tsc",
     "start": "node dist/server.js",
-    "build": "tsc
-    "typecheck": "turbo run typecheck",
-    "clean": "turbo run clean && rm -rf node_modules",
+    "lint": "prettier --check .",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
-    "db:push": "pnpm --filter @icon48/db db:push",
-    "db:migrate": "pnpm --filter @icon48/db db:migrate",
-    "db:studio": "pnpm --filter @icon48/db db:studio"
+    "postinstall": "npx prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "express": "^5.1.0",
+    "dotenv": "^16.4.5",
+    "cors": "^2.8.5",
+    "prisma": "5.22.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.5",
@@ -27,13 +27,9 @@
     "nodemon": "^3.1.10",
     "prettier": "^3.1.0",
     "ts-node": "^10.9.2",
-    "turbo": "^1.11.0",
     "typescript": "^5.3.3"
   },
-  "dependencies": {
-    "@prisma/client": "^5.22.0",
-    "express": "^5.1.0",
-    "prisma": "5.22.0"
-  }
+  "license": "UNLICENSED"
 }
+
 

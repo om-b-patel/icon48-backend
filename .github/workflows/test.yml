@@ -10,6 +10,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: icon48-backend  # 👈 ensures all commands run inside the correct folder
+
     services:
       postgres:
         image: postgres:15
@@ -34,12 +38,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 🧭 Step 2: Debug — verify we're in the correct folder and lockfile exists
+      # 🧭 Step 2: Verify correct directory + show contents
       - name: Show current directory contents
         run: |
           echo "Current directory:"
           pwd
-          echo "Files in root:"
+          echo "Contents:"
           ls -la
 
       # ⚙️ Step 3: Setup PNPM
@@ -55,9 +59,9 @@ jobs:
           node-version: 20
           cache: 'pnpm'
 
-      # 📦 Step 5: Install dependencies (using lockfile if present)
+      # 📦 Step 5: Install dependencies (now finds lockfile)
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       # 🧠 Step 6: Generate Prisma Client and sync DB schema
       - name: Prepare Prisma
@@ -79,7 +83,7 @@ jobs:
       - name: Run Artillery performance test
         run: npx artillery run tests/load/profitGraph.yml --duration 15
 
-      # ✅ Step 10: Stop the background server
+      # ✅ Step 10: Stop background processes
       - name: Stop background processes
         if: always()
         run: |

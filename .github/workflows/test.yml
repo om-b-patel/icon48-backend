@@ -30,30 +30,56 @@ jobs:
       NODE_ENV: test
 
     steps:
-      - uses: actions/checkout@v4
+      # 🧩 Step 1: Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v3
+      # 🧭 Step 2: Debug — verify we're in the correct folder and lockfile exists
+      - name: Show current directory contents
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Files in root:"
+          ls -la
+
+      # ⚙️ Step 3: Setup PNPM
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
         with:
           version: 8
 
-      - run: pnpm install
-      - run: npx prisma generate && npx prisma db push
+      # 🧰 Step 4: Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
 
-      # 🧪 Run Jest unit/integration tests
+      # 📦 Step 5: Install dependencies (using lockfile if present)
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      # 🧠 Step 6: Generate Prisma Client and sync DB schema
+      - name: Prepare Prisma
+        run: |
+          npx prisma generate
+          npx prisma db push
+
+      # 🧪 Step 7: Run Jest tests
       - name: Run Jest tests
         run: pnpm test -- --ci --reporters=default
 
-      # 🚀 Start backend for load test
+      # 🚀 Step 8: Start backend in background for load testing
       - name: Start backend in background
         run: |
           pnpm run dev &
           sleep 5
 
-      # ⚙️ Run short Artillery load test
+      # ⚙️ Step 9: Run short Artillery load test (performance check)
       - name: Run Artillery performance test
         run: npx artillery run tests/load/profitGraph.yml --duration 15
 
-      # ✅ Stop the server
+      # ✅ Step 10: Stop the background server
       - name: Stop background processes
         if: always()
         run: |

@@ -1,4 +1,4 @@
-name: CI
+name: ICON48 Backend CI (Strict)
 
 on:
   push:
@@ -7,32 +7,56 @@ on:
     branches: [ main ]
 
 jobs:
-  lint-and-typecheck:
+  build-and-test:
     runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
-      - name: Setup PNPM
-        uses: pnpm/action-setup@v3
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/testdb
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
         with:
           version: 8
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: "pnpm"
-
-      # ✅ FIXED: no-frozen-lockfile avoids ENOLOCKFILE error
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm run lint || echo "No lint script defined"
+      - name: Generate Prisma client
+        run: npx prisma generate && npx prisma db push
 
-      - name: Typecheck
-        run: pnpm exec tsc --noEmit || echo "No TypeScript issues"
+      - name: Typecheck (Strict)
+        run: pnpm exec tsc --noEmit
 
+      - name: Run Jest tests
+        run: pnpm test -- --ci --reporters=default
+
+      - name: Start backend in background
+        run: |
+          pnpm run dev &
+          sleep 5
+
+      - name: Run Artillery load test
+        run: npx artillery run tests/load/profitGraph.yml --duration 15
+
+      - name: Stop background processes
+        if: always()
+        run: pkill -f "ts-node" || true
 

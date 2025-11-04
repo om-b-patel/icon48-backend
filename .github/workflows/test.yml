@@ -30,56 +30,56 @@ jobs:
       NODE_ENV: test
 
     steps:
-      # 🧩 Step 1: Checkout repository
+      # 1️⃣ Checkout repo into the correct path
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          path: icon48-backend
 
-      # 🧭 Step 2: Debug — show current directory contents
-      - name: Show current directory contents
-        run: |
-          echo "Current directory:"
-          pwd
-          echo "Files:"
-          ls -la
-
-      # ⚙️ Step 3: Setup PNPM
+      # 2️⃣ Setup PNPM
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
         with:
           version: 8
 
-      # 🧰 Step 4: Setup Node.js
+      # 3️⃣ Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
+          cache-dependency-path: icon48-backend/pnpm-lock.yaml
 
-      # 📦 Step 5: Install dependencies
+      # 4️⃣ Install dependencies (no frozen lockfile)
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        working-directory: icon48-backend
+        run: pnpm install --no-frozen-lockfile
 
-      # 🧠 Step 6: Generate Prisma Client and sync DB schema
+      # 5️⃣ Prisma setup
       - name: Prepare Prisma
+        working-directory: icon48-backend
         run: |
           npx prisma generate
           npx prisma db push
 
-      # 🧪 Step 7: Run Jest tests
+      # 6️⃣ Run Jest tests
       - name: Run Jest tests
+        working-directory: icon48-backend
         run: pnpm test -- --ci --reporters=default
 
-      # 🚀 Step 8: Start backend in background
+      # 7️⃣ Start backend for load test
       - name: Start backend in background
+        working-directory: icon48-backend
         run: |
           pnpm run dev &
           sleep 5
 
-      # ⚙️ Step 9: Run Artillery load test
+      # 8️⃣ Run Artillery load test
       - name: Run Artillery performance test
+        working-directory: icon48-backend
         run: npx artillery run tests/load/profitGraph.yml --duration 15
 
-      # ✅ Step 10: Stop background server
+      # 9️⃣ Stop background processes
       - name: Stop background processes
         if: always()
         run: |

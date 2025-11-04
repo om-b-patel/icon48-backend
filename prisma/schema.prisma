@@ -7,51 +7,79 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  industry  String?
-  createdAt DateTime @default(now())
-  metrics   Metric[]
-  sources   Source[]
-  users     User[]
-}
-
-model User {
-  id             String        @id @default(cuid())
-  email          String        @unique
-  name           String?
-  createdAt      DateTime      @default(now())
-  organizationId String?
-  role           String        @default("member")
-  organization   Organization? @relation(fields: [organizationId], references: [id])
-}
-
-model Source {
-  id             String       @id @default(cuid())
-  name           String
-  type           String
-  connectedAt    DateTime     @default(now())
-  organizationId String
-  events         Event[]
-  organization   Organization @relation(fields: [organizationId], references: [id])
-}
-
-model Event {
-  id        String   @id @default(cuid())
-  name      String
-  category  String?
-  value     Float?
-  createdAt DateTime @default(now())
-  sourceId  String
-  source    Source   @relation(fields: [sourceId], references: [id])
-}
-
 model Metric {
-  id             String        @id @default(cuid())
-  name           String
+  id             String   @id @default(cuid())
+  name           String   @unique
   value          Float
-  calculatedAt   DateTime      @default(now())
+  calculatedAt   DateTime @default(now())
   organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Agent {
+  id               String   @id @default(cuid())
+  name             String
+  type             String
+  description      String
+  confidenceScore  Float?   @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Workflow {
+  id               String   @id @default(cuid())
+  name             String   @unique
+  description      String
+  dateStarted      DateTime? @default(now())
+  dateEvaluated    DateTime?
+  expectedImpact   Float?
+  actualImpact     Float?
+  confidenceScore  Float?   @default(0)
+  status           String   @default("pending")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model BetLedger {
+  id               String   @id @default(cuid())
+  hypothesis       String   @unique
+  description      String
+  dateStarted      DateTime? @default(now())
+  dateEvaluated    DateTime?
+  expectedImpact   Float?
+  actualImpact     Float?
+  confidenceScore  Float?   @default(0)
+  status           String   @default("pending")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// ───────────────────────────────────────────────
+// Profit Graph Models (Phase B4)
+// ───────────────────────────────────────────────
+
+model ProfitNode {
+  id            String        @id @default(cuid())
+  name          String
+  category      String
+  baselineValue Float          @default(0)
+  currentValue  Float          @default(0)
+  impactWeight  Float          @default(1)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  outgoingEdges ProfitEdge[]   @relation("FromNode")
+  incomingEdges ProfitEdge[]   @relation("ToNode")
+}
+
+model ProfitEdge {
+  id          String     @id @default(cuid())
+  fromNodeId  String
+  toNodeId    String
+  weight      Float      @default(1)
+  rationale   String?
+
+  fromNode    ProfitNode @relation("FromNode", fields: [fromNodeId], references: [id], onDelete: Cascade)
+  toNode      ProfitNode @relation("ToNode", fields: [toNodeId], references: [id], onDelete: Cascade)
 }

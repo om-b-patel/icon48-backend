@@ -10,6 +10,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    # ✅ Force working directory to the correct repo root
+    defaults:
+      run:
+        working-directory: ${{ github.workspace }}
+
     services:
       postgres:
         image: postgres:15
@@ -30,7 +35,7 @@ jobs:
       NODE_ENV: test
 
     steps:
-      # 1️⃣ Checkout repository normally
+      # 1️⃣ Checkout the repo
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -45,14 +50,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
+          cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
 
       # 4️⃣ Install dependencies (no frozen lockfile)
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      # 5️⃣ Prisma setup
+      # 5️⃣ Prepare Prisma
       - name: Prepare Prisma
         run: |
           npx prisma generate
@@ -62,13 +67,13 @@ jobs:
       - name: Run Jest tests
         run: pnpm test -- --ci --reporters=default
 
-      # 7️⃣ Start backend in background
+      # 7️⃣ Start backend for load testing
       - name: Start backend in background
         run: |
           pnpm run dev &
           sleep 5
 
-      # 8️⃣ Run Artillery load test
+      # 8️⃣ Run Artillery performance test
       - name: Run Artillery performance test
         run: npx artillery run tests/load/profitGraph.yml --duration 15
 

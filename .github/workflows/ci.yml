@@ -9,6 +9,9 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./ # 👈 Run all commands from repo root
 
     services:
       postgres:
@@ -37,7 +40,7 @@ jobs:
           version: 8
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Generate Prisma client
         run: npx prisma generate && npx prisma db push
@@ -59,4 +62,3 @@ jobs:
       - name: Stop background processes
         if: always()
         run: pkill -f "ts-node" || true
-

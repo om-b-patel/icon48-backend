@@ -8,12 +8,8 @@ on:
 
 jobs:
   test:
+    name: Run Backend Tests + Load Test
     runs-on: ubuntu-latest
-
-    # ✅ Force working directory to the correct repo root
-    defaults:
-      run:
-        working-directory: ${{ github.workspace }}
 
     services:
       postgres:
@@ -35,50 +31,45 @@ jobs:
       NODE_ENV: test
 
     steps:
-      # 1️⃣ Checkout the repo
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2️⃣ Setup PNPM
       - name: Setup PNPM
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v3
         with:
           version: 8
 
-      # 3️⃣ Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: "pnpm"
-          cache-dependency-path: pnpm-lock.yaml
 
-      # 4️⃣ Install dependencies (no frozen lockfile)
+      # ✅ Install dependencies (allow no lockfile issues)
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      # 5️⃣ Prepare Prisma
+      # ✅ Generate Prisma client & push schema
       - name: Prepare Prisma
         run: |
           npx prisma generate
           npx prisma db push
 
-      # 6️⃣ Run Jest tests
+      # ✅ Run Jest tests
       - name: Run Jest tests
         run: pnpm test -- --ci --reporters=default
 
-      # 7️⃣ Start backend for load testing
+      # ✅ Start backend server for load test
       - name: Start backend in background
         run: |
           pnpm run dev &
           sleep 5
 
-      # 8️⃣ Run Artillery performance test
+      # ✅ Run Artillery load test (short duration)
       - name: Run Artillery performance test
         run: npx artillery run tests/load/profitGraph.yml --duration 15
 
-      # 9️⃣ Stop background processes
+      # ✅ Stop background Node processes
       - name: Stop background processes
         if: always()
-        run: |
-          pkill -f "ts-node" || true
+        run: pkill -f "ts-node" || true

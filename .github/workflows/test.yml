@@ -30,11 +30,9 @@ jobs:
       NODE_ENV: test
 
     steps:
-      # 1️⃣ Checkout repo into the correct path
+      # 1️⃣ Checkout repository normally
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          path: icon48-backend
 
       # 2️⃣ Setup PNPM
       - name: Setup PNPM
@@ -48,35 +46,30 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
-          cache-dependency-path: icon48-backend/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       # 4️⃣ Install dependencies (no frozen lockfile)
       - name: Install dependencies
-        working-directory: icon48-backend
         run: pnpm install --no-frozen-lockfile
 
       # 5️⃣ Prisma setup
       - name: Prepare Prisma
-        working-directory: icon48-backend
         run: |
           npx prisma generate
           npx prisma db push
 
       # 6️⃣ Run Jest tests
       - name: Run Jest tests
-        working-directory: icon48-backend
         run: pnpm test -- --ci --reporters=default
 
-      # 7️⃣ Start backend for load test
+      # 7️⃣ Start backend in background
       - name: Start backend in background
-        working-directory: icon48-backend
         run: |
           pnpm run dev &
           sleep 5
 
       # 8️⃣ Run Artillery load test
       - name: Run Artillery performance test
-        working-directory: icon48-backend
         run: npx artillery run tests/load/profitGraph.yml --duration 15
 
       # 9️⃣ Stop background processes

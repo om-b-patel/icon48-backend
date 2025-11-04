@@ -10,10 +10,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: icon48-backend  # 👈 ensures all commands run inside the correct folder
-
     services:
       postgres:
         image: postgres:15
@@ -34,16 +30,16 @@ jobs:
       NODE_ENV: test
 
     steps:
-      # 🧩 Step 1: Checkout repo
+      # 🧩 Step 1: Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 🧭 Step 2: Verify correct directory + show contents
+      # 🧭 Step 2: Debug — show current directory contents
       - name: Show current directory contents
         run: |
           echo "Current directory:"
           pwd
-          echo "Contents:"
+          echo "Files:"
           ls -la
 
       # ⚙️ Step 3: Setup PNPM
@@ -59,7 +55,7 @@ jobs:
           node-version: 20
           cache: 'pnpm'
 
-      # 📦 Step 5: Install dependencies (now finds lockfile)
+      # 📦 Step 5: Install dependencies
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -73,17 +69,17 @@ jobs:
       - name: Run Jest tests
         run: pnpm test -- --ci --reporters=default
 
-      # 🚀 Step 8: Start backend in background for load testing
+      # 🚀 Step 8: Start backend in background
       - name: Start backend in background
         run: |
           pnpm run dev &
           sleep 5
 
-      # ⚙️ Step 9: Run short Artillery load test (performance check)
+      # ⚙️ Step 9: Run Artillery load test
       - name: Run Artillery performance test
         run: npx artillery run tests/load/profitGraph.yml --duration 15
 
-      # ✅ Step 10: Stop background processes
+      # ✅ Step 10: Stop background server
       - name: Stop background processes
         if: always()
         run: |

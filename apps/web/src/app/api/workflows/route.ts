@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     const workspace = await getWorkspaceFromRequest(req, ctx);
     if (workspace instanceof Response) return workspace;
     
-    const body = await req.json();
+    const body: any = await req.json();
     return createWorkflow(workspace.workspaceId, body);
   });
 }

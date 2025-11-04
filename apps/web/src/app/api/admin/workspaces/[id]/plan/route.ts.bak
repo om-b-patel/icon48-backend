@@ -6,7 +6,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   return requireAdmin(req, async (req, ctx) => {
-    const body: any = await req.json();
+    const body = await req.json();
     return updateWorkspacePlan(
       ctx.profileId,
       params.id,

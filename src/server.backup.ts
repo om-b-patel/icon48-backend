@@ -3,7 +3,7 @@ import cors from "cors";
 import { PrismaClient } from "@prisma/client";
 import metricsRoute from "./routes/metrics";
 import profitGraphRoute from "./routes/profitGraph";
-import integrationsRoute from "./routes/integrations";import { telemetryMiddleware } from "./services/telemetry";
+import { telemetryMiddleware } from "./services/telemetry";
 
 const app = express();
 const prisma = new PrismaClient();
@@ -21,12 +21,9 @@ app.get("/", (req, res) => {
 // API routes
 app.use("/api/metrics", metricsRoute);
 app.use("/api/profit-graph", profitGraphRoute);
-app.use("/api/integrations", integrationsRoute);
+
 // Server start
 const PORT = process.env.PORT || 3000;
-const server = app.listen(PORT, () => {
+app.listen(PORT, () => {
   console.log(`✅ ICON48 backend running on port ${PORT}`);
 });
-
-export default app;
-export { server };

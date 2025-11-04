@@ -1,12 +1,12 @@
 import { NextRequest } from 'next/server';
-import { withAuth, listAgents, createAgent, getWorkspaceFromRequest } from '@icon48/api';
+import { withAuth, listWorkflows, createWorkflow, getWorkspaceFromRequest } from '@icon48/api';
 
 export async function GET(req: NextRequest) {
   return withAuth(req, async (req, ctx) => {
     const workspace = await getWorkspaceFromRequest(req, ctx);
     if (workspace instanceof Response) return workspace;
     
-    return listAgents(workspace.workspaceId);
+    return listWorkflows(workspace.workspaceId);
   });
 }
 
@@ -15,8 +15,8 @@ export async function POST(req: NextRequest) {
     const workspace = await getWorkspaceFromRequest(req, ctx);
     if (workspace instanceof Response) return workspace;
     
-    const body: any = await req.json();
-    return createAgent(workspace.workspaceId, body);
+    const body = await req.json();
+    return createWorkflow(workspace.workspaceId, body);
   });
 }
 

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { withAuth, runWorkflow, getWorkspaceFromRequest } from '@icon48/api';
+import { withAuth, executeAgentTask, getWorkspaceFromRequest } from '@icon48/api';
 
 export async function POST(
   req: NextRequest,
@@ -9,8 +9,13 @@ export async function POST(
     const workspace = await getWorkspaceFromRequest(req, ctx);
     if (workspace instanceof Response) return workspace;
     
-    const body: any = await req.json();
-    return runWorkflow(workspace.workspaceId, params.id, body.input);
+    const body = await req.json();
+    return executeAgentTask(
+      workspace.workspaceId,
+      params.id,
+      body.taskType,
+      body.input
+    );
   });
 }
 

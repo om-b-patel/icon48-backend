@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { withAuth, getWorkflow, updateWorkflow, deleteWorkflow, getWorkspaceFromRequest } from '@icon48/api';
+import { withAuth, getAgent, updateAgent, deleteAgent, getWorkspaceFromRequest } from '@icon48/api';
 
 export async function GET(
   req: NextRequest,
@@ -9,7 +9,7 @@ export async function GET(
     const workspace = await getWorkspaceFromRequest(req, ctx);
     if (workspace instanceof Response) return workspace;
     
-    return getWorkflow(workspace.workspaceId, params.id);
+    return getAgent(workspace.workspaceId, params.id);
   });
 }
 
@@ -21,8 +21,8 @@ export async function PATCH(
     const workspace = await getWorkspaceFromRequest(req, ctx);
     if (workspace instanceof Response) return workspace;
     
-    const body: any = await req.json();
-    return updateWorkflow(workspace.workspaceId, params.id, body);
+    const body = await req.json();
+    return updateAgent(workspace.workspaceId, params.id, body);
   });
 }
 
@@ -34,7 +34,7 @@ export async function DELETE(
     const workspace = await getWorkspaceFromRequest(req, ctx);
     if (workspace instanceof Response) return workspace;
     
-    return deleteWorkflow(workspace.workspaceId, params.id);
+    return deleteAgent(workspace.workspaceId, params.id);
   });
 }
 

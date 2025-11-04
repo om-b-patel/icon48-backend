@@ -9,7 +9,7 @@ export async function POST(
     const workspace = await getWorkspaceFromRequest(req, ctx);
     if (workspace instanceof Response) return workspace;
     
-    const body = await req.json();
+    const body: any = await req.json();
     return executeAgentTask(
       workspace.workspaceId,
       params.id,

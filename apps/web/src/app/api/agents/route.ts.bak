@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     const workspace = await getWorkspaceFromRequest(req, ctx);
     if (workspace instanceof Response) return workspace;
     
-    const body: any = await req.json();
+    const body = await req.json();
     return createAgent(workspace.workspaceId, body);
   });
 }

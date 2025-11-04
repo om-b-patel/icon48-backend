@@ -117,7 +117,7 @@ export async function updateWorkspacePlan(
     await prisma.adminLog.create({
       data: {
         adminId,
-                action: 'update_workspace_plan',
+        workspaceId,        action: 'update_workspace_plan',
         targetId: workspaceId,
         details: {
           plan,
@@ -238,7 +238,7 @@ export async function getAdminLogs(
         take: limit,
         orderBy: { createdAt: 'desc' },
       }),
-      prisma.workspace.count(),
+      prisma.metric.count(),
     ]);
 
     return NextResponse.json({
@@ -276,7 +276,7 @@ export async function toggleUserAdmin(
     await prisma.adminLog.create({
       data: {
         adminId,
-                action: 'toggle_user_admin',
+        workspaceId: userId,        action: 'toggle_user_admin',
         targetId: userId,
         details: { admin },
       },

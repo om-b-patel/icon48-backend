@@ -39,7 +39,7 @@ export async function getMetrics(
     const successRate = runsToday > 0
       ? (completedRuns.length / runsToday) * 100
       : 0;
-    const spendToday = todayRuns.reduce((sum, run) => sum + (run.costUsd ?? 0), 0);
+    const spendToday = todayRuns.reduce((sum, run) => sum + run.costUsd, 0);
 
     const activeAgents = await prisma.agent.count({
       where: {
@@ -137,7 +137,7 @@ export async function getWorkflowAnalytics(
     const failed = runs.filter(r => r.status === 'failed').length;
     const successRate = totalRuns > 0 ? (completed / totalRuns) * 100 : 0;
 
-    const totalCost = runs.reduce((sum, run) => sum + (run.costUsd ?? 0), 0);
+    const totalCost = runs.reduce((sum, run) => sum + run.costUsd, 0);
     const avgCost = totalRuns > 0 ? totalCost / totalRuns : 0;
 
     const completedRuns = runs.filter(r => r.durationMs !== null);

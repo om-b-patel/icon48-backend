@@ -29,7 +29,7 @@ export async function createCheckoutSession(
   plan: 'starter' | 'pro' | 'enterprise'
 ): Promise<NextResponse> {
   try {
-    const workspace = await prisma.workspace.findUnique({
+    const workspace = await prisma.metric.findUnique({
       where: { id: workspaceId },
     });
 
@@ -142,7 +142,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   const config = PLAN_CONFIGS[plan as keyof typeof PLAN_CONFIGS];
 
-  await prisma.workspace.update({
+  await prisma.metric.update({
     where: { id: workspaceId },
     data: {
       stripeCustomerId: session.customer as string,
@@ -152,7 +152,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     },
   });
 
-  await prisma.billingEvent.create({
+  await prisma.metric.create({
     data: {
       workspaceId,
       eventType: 'subscription.created',
@@ -166,7 +166,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 }
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
-  const workspace = await prisma.workspace.findFirst({
+  const workspace = await prisma.metric.findFirst({
     where: { stripeSubscriptionId: subscription.id },
   });
 
@@ -184,12 +184,12 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     }
   }
 
-  await prisma.workspace.update({
+  await prisma.metric.update({
     where: { id: workspace.id },
     data: { plan, agentLimit },
   });
 
-  await prisma.billingEvent.create({
+  await prisma.metric.create({
     data: {
       workspaceId: workspace.id,
       eventType: 'subscription.updated',
@@ -201,13 +201,13 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
-  const workspace = await prisma.workspace.findFirst({
+  const workspace = await prisma.metric.findFirst({
     where: { stripeSubscriptionId: subscription.id },
   });
 
   if (!workspace) return;
 
-  await prisma.workspace.update({
+  await prisma.metric.update({
     where: { id: workspace.id },
     data: {
       plan: 'starter',
@@ -216,7 +216,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     },
   });
 
-  await prisma.billingEvent.create({
+  await prisma.metric.create({
     data: {
       workspaceId: workspace.id,
       eventType: 'subscription.deleted',
@@ -228,13 +228,13 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 }
 
 async function handleInvoicePaid(invoice: Stripe.Invoice) {
-  const workspace = await prisma.workspace.findFirst({
+  const workspace = await prisma.metric.findFirst({
     where: { stripeCustomerId: invoice.customer as string },
   });
 
   if (!workspace) return;
 
-  await prisma.billingEvent.create({
+  await prisma.metric.create({
     data: {
       workspaceId: workspace.id,
       eventType: 'invoice.paid',
@@ -248,13 +248,13 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
 }
 
 async function handleInvoiceFailed(invoice: Stripe.Invoice) {
-  const workspace = await prisma.workspace.findFirst({
+  const workspace = await prisma.metric.findFirst({
     where: { stripeCustomerId: invoice.customer as string },
   });
 
   if (!workspace) return;
 
-  await prisma.billingEvent.create({
+  await prisma.metric.create({
     data: {
       workspaceId: workspace.id,
       eventType: 'invoice.payment_failed',
@@ -274,7 +274,7 @@ export async function createPortalSession(
   workspaceId: string
 ): Promise<NextResponse> {
   try {
-    const workspace = await prisma.workspace.findUnique({
+    const workspace = await prisma.metric.findUnique({
       where: { id: workspaceId },
     });
 

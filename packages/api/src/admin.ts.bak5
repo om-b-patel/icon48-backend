@@ -276,7 +276,7 @@ export async function toggleUserAdmin(
     await prisma.adminLog.create({
       data: {
         adminId,
-                action: 'toggle_user_admin',
+        workspaceId: userId,        action: 'toggle_user_admin',
         targetId: userId,
         details: { admin },
       },

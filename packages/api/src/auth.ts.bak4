@@ -134,7 +134,7 @@ export async function createWorkspace(
   data: { name: string; slug: string }
 ): Promise<NextResponse> {
   try {
-    const profile = await prisma.user.findUnique({
+    const profile = await prisma.metric.findUnique({
       where: { id: userId },
     });
 

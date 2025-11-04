@@ -12,7 +12,7 @@ export async function listUsers(
     const skip = (page - 1) * limit;
 
     const [users, total] = await Promise.all([
-      prisma.workspace.findMany({
+      prisma.metric.findMany({
         skip,
         take: limit,
         include: {
@@ -24,7 +24,7 @@ export async function listUsers(
         },
         orderBy: { createdAt: 'desc' },
       }),
-      prisma.workspace.count(),
+      prisma.metric.count(),
     ]);
 
     return NextResponse.json({
@@ -52,7 +52,7 @@ export async function getUserDetails(
   userId: string
 ): Promise<NextResponse> {
   try {
-    const profile = await prisma.user.findUnique({
+    const profile = await prisma.metric.findUnique({
       where: { id: userId },
       include: {
         memberships: {
@@ -105,7 +105,7 @@ export async function updateWorkspacePlan(
       enterprise: agentLimit || 999,
     };
 
-    const workspace = await prisma.workspace.update({
+    const workspace = await prisma.metric.update({
       where: { id: workspaceId },
       data: {
         plan,
@@ -114,10 +114,10 @@ export async function updateWorkspacePlan(
     });
 
     // Log admin action
-    await prisma.adminLog.create({
+    await prisma.metric.create({
       data: {
         adminId,
-                action: 'update_workspace_plan',
+        workspaceId,        action: 'update_workspace_plan',
         targetId: workspaceId,
         details: {
           plan,
@@ -149,19 +149,19 @@ export async function getSystemStats(): Promise<NextResponse> {
       totalRuns,
       activeSubscriptions,
     ] = await Promise.all([
-      prisma.workflowRun.count(),
-      prisma.workflowRun.count(),
+      prisma.metric.count(),
+      prisma.metric.count(),
       prisma.workflow.count(),
       prisma.agent.count({ where: { active: true } }),
-      prisma.agent.count(),
-      prisma.agent.count({
+      prisma.metric.count(),
+      prisma.metric.count({
         where: {
           stripeSubscriptionId: { not: null },
         },
       }),
     ]);
 
-    const planDistribution = await prisma.workspace.groupBy({
+    const planDistribution = await prisma.metric.groupBy({
       by: ['plan'],
       _count: true,
     });
@@ -169,11 +169,11 @@ export async function getSystemStats(): Promise<NextResponse> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const todayRuns = await prisma.workflowRun.count({
+    const todayRuns = await prisma.metric.count({
       where: { startedAt: { gte: today } },
     });
 
-    const todayRevenue = await prisma.billingEvent.aggregate({
+    const todayRevenue = await prisma.metric.aggregate({
       where: {
         createdAt: { gte: today },
         eventType: 'invoice.paid',
@@ -181,7 +181,7 @@ export async function getSystemStats(): Promise<NextResponse> {
       _sum: { amount: true },
     });
 
-    const recentErrors = await prisma.workflowRun.findMany({
+    const recentErrors = await prisma.metric.findMany({
       where: {
         status: 'failed',
         error: { not: null },
@@ -233,12 +233,12 @@ export async function getAdminLogs(
     const skip = (page - 1) * limit;
 
     const [logs, total] = await Promise.all([
-      prisma.workspace.findMany({
+      prisma.metric.findMany({
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
       }),
-      prisma.workspace.count(),
+      prisma.metric.count(),
     ]);
 
     return NextResponse.json({
@@ -273,10 +273,10 @@ export async function toggleUserAdmin(
       data: { admin },
     });
 
-    await prisma.adminLog.create({
+    await prisma.metric.create({
       data: {
         adminId,
-                action: 'toggle_user_admin',
+        action: 'toggle_user_admin',
         targetId: userId,
         details: { admin },
       },

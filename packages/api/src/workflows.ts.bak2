@@ -310,7 +310,7 @@ export async function runWorkflow(
     const run = await prisma.metric.create({
       data: {
         workflowId,
-        workspaceId: workflow.workspaceId,        status: 'running',
+        status: 'running',
         input: input || {},
       },
     });

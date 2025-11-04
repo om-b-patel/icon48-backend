@@ -299,7 +299,7 @@ export async function runWorkflow(
       enterprise: 999999,
     };
 
-    if (workspace.plan && todayRuns >= limits[workspace.plan]) {
+    if (todayRuns >= limits[workspace.plan]) {
       return NextResponse.json(
         { error: 'Daily workflow run limit exceeded' },
         { status: 429 }
@@ -310,7 +310,7 @@ export async function runWorkflow(
     const run = await prisma.metric.create({
       data: {
         workflowId,
-        workspaceId: workflow.workspaceId,        status: 'running',
+        status: 'running',
         input: input || {},
       },
     });

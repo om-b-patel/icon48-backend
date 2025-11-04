@@ -274,7 +274,7 @@ export async function createPortalSession(
   workspaceId: string
 ): Promise<NextResponse> {
   try {
-    const workspace = await prisma.workspace.findUnique({
+    const workspace = await prisma.metric.findUnique({
       where: { id: workspaceId },
     });
 

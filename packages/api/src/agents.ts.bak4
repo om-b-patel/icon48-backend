@@ -102,7 +102,7 @@ export async function createAgent(
       );
     }
 
-    if (workspace.agents.length >= (workspace.agentLimit ?? 0)) {
+    if (workspace.agents.length >= workspace.agentLimit) {
       return NextResponse.json(
         { 
           error: `Agent limit reached. Your ${workspace.plan} plan allows ${workspace.agentLimit} agents.`,
@@ -321,7 +321,7 @@ export async function getAgentTask(
   taskId: string
 ): Promise<NextResponse> {
   try {
-    const task = await prisma.agentTask.findFirst({
+    const task = await prisma.metric.findFirst({
       where: {
         id: taskId,
         agent: { workspaceId },

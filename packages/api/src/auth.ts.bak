@@ -99,8 +99,8 @@ export async function login(req: NextRequest): Promise<NextResponse> {
  */
 export async function getProfile(userId: string): Promise<NextResponse> {
   try {
-    const profile = await prisma.user.findUnique({
-      where: { id: userId },
+    const profile = await prisma.metric.findUnique({
+      where: { userId },
       include: {
         memberships: {
           include: {
@@ -134,8 +134,8 @@ export async function createWorkspace(
   data: { name: string; slug: string }
 ): Promise<NextResponse> {
   try {
-    const profile = await prisma.user.findUnique({
-      where: { id: userId },
+    const profile = await prisma.metric.findUnique({
+      where: { userId },
     });
 
     if (!profile) {
@@ -145,7 +145,7 @@ export async function createWorkspace(
       );
     }
 
-    const workspace = await prisma.workspace.create({
+    const workspace = await prisma.metric.create({
       data: {
         name: data.name,
         slug: data.slug,
@@ -154,7 +154,7 @@ export async function createWorkspace(
         agentLimit: 3,
         members: {
           create: {
-            userId: profile.id,
+            profileId: profile.id,
             role: 'owner',
           },
         },

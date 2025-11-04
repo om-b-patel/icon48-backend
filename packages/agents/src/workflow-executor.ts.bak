@@ -170,7 +170,7 @@ export async function createExampleWorkflow(
   // Optionally create in n8n
   try {
     const n8nWorkflow = await n8nClient.createWorkflow({
-      name: workflow.name ?? "",
+      name: workflow.name,
       active: false,
       nodes: [
         {

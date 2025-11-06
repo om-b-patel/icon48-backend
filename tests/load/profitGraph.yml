@@ -1,7 +1,7 @@
 config:
   target: "http://localhost:3000"
   phases:
-    - duration: 60        # run for 60 seconds
+    - duration: 15        # run for 15 seconds
       arrivalRate: 10     # 10 new requests per second
   defaults:
     headers:

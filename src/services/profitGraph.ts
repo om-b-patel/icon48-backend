@@ -1,8 +1,7 @@
 import { PrismaClient } from "@prisma/client";
-
 const prisma = new PrismaClient();
 
-export type ProfitNodeDTO = {
+export interface ProfitNodeDTO {
   id: string;
   name: string;
   category: string;
@@ -11,22 +10,21 @@ export type ProfitNodeDTO = {
   impactWeight: number;
   delta: number;
   impactScore: number;
-};
+}
 
-export type ProfitGraphSnapshot = {
+export interface ProfitEdgeDTO {
+  id: string;
+  fromNodeId: string;
+  toNodeId: string;
+  weight: number;
+  rationale: string | null;
+}
+
+export interface ProfitGraphSnapshot {
   totalImpact: number;
   nodes: ProfitNodeDTO[];
-  edges: {
-    id: string;
-    fromNodeId: string;
-    toNodeId: string;
-    weight: number;
-    rationale: string | null;
-  }[];
-  topPositive: string[];
-  topNegative: string[];
-  generatedAt: string;
-};
+  edges: ProfitEdgeDTO[];
+}
 
 export async function getProfitGraphSnapshot(): Promise<ProfitGraphSnapshot> {
   const [nodes, edges] = await Promise.all([
@@ -35,44 +33,37 @@ export async function getProfitGraphSnapshot(): Promise<ProfitGraphSnapshot> {
   ]);
 
   const nodeDTOs: ProfitNodeDTO[] = nodes.map((n) => {
-    const delta = n.currentValue - n.baselineValue;
-    const impactScore = delta * n.impactWeight;
+    const baseline = n.baselineValue ?? 0;
+    const current = n.currentValue ?? 0;
+    const weight = n.impactWeight ?? 1;
+    const delta = current - baseline;
+    const impactScore = delta * weight;
+
     return {
       id: n.id,
       name: n.name,
-      category: n.category,
-      baselineValue: n.baselineValue,
-      currentValue: n.currentValue,
-      impactWeight: n.impactWeight,
+      category: n.category ?? "uncategorized",
+      baselineValue: baseline,
+      currentValue: current,
+      impactWeight: weight,
       delta,
       impactScore,
     };
   });
 
   const totalImpact = nodeDTOs.reduce((sum, n) => sum + n.impactScore, 0);
-  const topPositive = nodeDTOs
-    .filter((n) => n.impactScore > 0)
-    .sort((a, b) => b.impactScore - a.impactScore)
-    .slice(0, 3)
-    .map((n) => n.name);
-  const topNegative = nodeDTOs
-    .filter((n) => n.impactScore < 0)
-    .sort((a, b) => a.impactScore - b.impactScore)
-    .slice(0, 3)
-    .map((n) => n.name);
+
+  const edgeDTOs: ProfitEdgeDTO[] = edges.map((e) => ({
+    id: e.id,
+    fromNodeId: e.fromNodeId ?? "",
+    toNodeId: e.toNodeId ?? "",
+    weight: e.weight ?? 1,
+    rationale: e.rationale ?? null,
+  }));
 
   return {
     totalImpact,
     nodes: nodeDTOs,
-    edges: edges.map((e) => ({
-      id: e.id,
-      fromNodeId: e.fromNodeId,
-      toNodeId: e.toNodeId,
-      weight: e.weight,
-      rationale: e.rationale ?? null,
-    })),
-    topPositive,
-    topNegative,
-    generatedAt: new Date().toISOString(),
+    edges: edgeDTOs,
   };
 }

@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 // -------------------- METRICS --------------------
 router.get("/metrics", async (_, res) => {
   try {
-    const metrics = await prisma.metric.findMany({ orderBy: { calculatedAt: "desc" } });
+    const metrics = await prisma.metric.findMany({ orderBy: { createdAt: "desc" } });
     res.json(metrics);
   } catch (err) {
     console.error(err);
@@ -50,14 +50,15 @@ router.get("/profit-graph", async (_, res) => {
 });
 
 // -------------------- BET LEDGER --------------------
-router.get("/bets", async (_, res) => {
-  try {
-    const bets = await prisma.betLedger.findMany({ orderBy: { createdAt: "desc" } });
-    res.json(bets);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch bet ledger" });
-  }
-});
+// Note: betLedger model not yet defined in schema
+// router.get("/bets", async (_, res) => {
+//   try {
+//     const bets = await prisma.betLedger.findMany({ orderBy: { createdAt: "desc" } });
+//     res.json(bets);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: "Failed to fetch bet ledger" });
+//   }
+// });
 
 export default router;

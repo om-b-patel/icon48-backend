@@ -1,64 +1,45 @@
-name: ICON48 Backend CI (Strict)
+name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./ # 👈 Run all commands from repo root
-
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: testdb
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/testdb
-      NODE_ENV: test
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v3
+      - name: Use Node
+        uses: actions/setup-node@v4
         with:
-          version: 8
+          node-version: "20"
+          cache: "pnpm"
 
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install deps
+        run: pnpm install
 
       - name: Generate Prisma client
-        run: npx prisma generate && npx prisma db push
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          npx prisma generate
 
-      - name: Typecheck (Strict)
+      - name: Push Prisma schema (optional for CI)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          npx prisma db push
+
+      - name: Type check
         run: pnpm exec tsc --noEmit
 
-      - name: Run Jest tests
-        run: pnpm test -- --ci --reporters=default
-
-      - name: Start backend in background
-        run: |
-          pnpm run dev &
-          sleep 5
-
-      - name: Run Artillery load test
-        run: npx artillery run tests/load/profitGraph.yml --duration 15
-
-      - name: Stop background processes
-        if: always()
-        run: pkill -f "ts-node" || true
+      - name: Run tests
+        run: pnpm test

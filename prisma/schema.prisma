@@ -7,239 +7,155 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-//
-// CORE MODELS YOUR TS CODE REFERENCES
-//
-
 model Workspace {
-  id                     String    @id @default(cuid())
-  name                   String?
-  slug                   String?
-  ownerId                String?
-  plan                   String?
-  agentLimit             Int?      @default(5)
-  stripeCustomerId       String?
-  stripeSubscriptionId   String?
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
+  id          String      @id @default(cuid())
+  name        String
+  plan        String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
-  // relations
-  workflows              Workflow[]
-  agents                 Agent[]
-  metrics                Metric[]
-  members                MetricMember[]
-  agentTasks             AgentTask[]
-  workflowRuns           WorkflowRun[]
-  billingEvents          BillingEvent[]
-}
-
-model Workflow {
-  id          String    @id @default(cuid())
-  workspaceId String
-  name        String?
-  description String?
-  triggerType String?
-  active      Boolean   @default(true)
-  n8nWorkflowId String?
-  config      Json?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  workflows   Workflow[]
+  agents      Agent[]
   metrics     Metric[]
-  runs        WorkflowRun[]
-}
-
-model Agent {
-  id                     String    @id @default(cuid())
-  workspaceId            String
-  name                   String?
-  type                   String?
-  description            String?
-  active                 Boolean   @default(true)
-  confidenceScore        Float?
-  configVaultId          String?
-  stripeSubscriptionId   String?
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
-
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
-  metrics     Metric[]
+  billing     BillingEvent[]
+  users       User[]
   tasks       AgentTask[]
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  admin     Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  role         String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  metrics   Metric[]
-  memberships MetricMember[]
+  workspaceId  String?
+  workspace    Workspace? @relation(fields: [workspaceId], references: [id])
 }
 
-model Admin {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  createdAt DateTime @default(now())
-
-  metrics   Metric[]
-  logs      AdminLog[]
-}
-
-//
-// THE BIG ONE: Metric
-// make it a "catch-all" table since a lot of TS code was rewritten to use it
-//
-
-model Metric {
-  id                    String    @id @default(cuid())
-  workspaceId           String
-  workflowId            String?
-  agentId               String?
-  adminId               String?
-  userId                String?
-  name                  String?
-  plan                  String?
-  status                String?     // 'running' | 'completed' | 'failed'
-  eventType             String?
-  amount                Float?
-  costUsd               Float?
-  durationMs            Int?
-  value                 Float?
-  output                Json?
-  error                 String?
-  input                 Json?
-  action                String?
-  taskType              String?
-  targetId              String?
-  date                  DateTime?
-  runsToday             Int?
-  spendToday            Float?
-  activeAgents          Int?
-  successRate           Float?
-  completedAt           DateTime?
-  stripeEventId         String?
-  calculatedAt          DateTime?
-  startedAt             DateTime?   @default(now())
-  createdAt             DateTime?   @default(now())
-  updatedAt             DateTime?   @updatedAt
-  stripeCustomerId      String?
-  stripeSubscriptionId  String?
-  slug                  String?
-  currency              String?
-  metadata              Json?
-  details               Json?
-  ownerId               String?
-
-  workspace  Workspace  @relation(fields: [workspaceId], references: [id])
-  workflow   Workflow?  @relation(fields: [workflowId], references: [id])
-  agent      Agent?     @relation(fields: [agentId], references: [id])
-  admin      Admin?     @relation(fields: [adminId], references: [id])
-  user       User?      @relation(fields: [userId], references: [id])
-
-  @@index([workspaceId])
-  @@index([workflowId])
-  @@index([status])
-  @@index([startedAt])
-  @@index([date])
-  @@unique([workspaceId, date])
-}
-
-//
-// SUPPORTING MODELS THAT SHOWED UP IN ERRORS
-//
-
-model MetricMember {
-  id          String    @id @default(cuid())
-  workspaceId String
-  userId      String
-  profileId   String?
-  role        String?
-  createdAt   DateTime  @default(now())
-
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
-  user        User      @relation(fields: [userId], references: [id])
-}
-
-model AgentTask {
-  id          String    @id @default(cuid())
-  agentId     String
-  workspaceId String
-  taskType    String?
-  input       Json?
-  status      String?
-  createdAt   DateTime  @default(now())
-
-  agent       Agent     @relation(fields: [agentId], references: [id])
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
-}
-
-model WorkflowRun {
-  id          String    @id @default(cuid())
-  workflowId  String
-  workspaceId String
-  status      String?
-  error       String?
-  startedAt   DateTime?
-  createdAt   DateTime  @default(now())
-
-  workflow    Workflow  @relation(fields: [workflowId], references: [id])
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
-}
-
-model BillingEvent {
-  id            String    @id @default(cuid())
-  workspaceId   String?
-  eventType     String?
-  amount        Float?
-  currency      String?
-  status        String?
-  stripeEventId String?
-  metadata      Json?
-  createdAt     DateTime  @default(now())
-
-  workspace     Workspace? @relation(fields: [workspaceId], references: [id])
-}
-
-model AdminLog {
-  id        String   @id @default(cuid())
-  adminId   String?
-  action    String?
-  targetId String?
-  details   Json?
-  createdAt DateTime @default(now())
-  
-  admin     Admin?   @relation(fields: [adminId], references: [id])
-}
-
-//
-// models your routes touched
-//
-
-model BetLedger {
+model Workflow {
   id              String    @id @default(cuid())
-  amount          Float?
-  description     String?
-  hypothesis      String?
-  status          String?
-  expectedImpact  String?
-  confidenceScore Float?
-  dateStarted     DateTime?
+  name            String
+  description     String
+  status          String    @default("idle")
+  triggerType     String?
+  config          Json?
+  active          Boolean   @default(true)
+
+  workspaceId     String
+  workspace       Workspace @relation(fields: [workspaceId], references: [id])
+
+  metrics         Metric[]
+  runs            WorkflowRun[]
+
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 }
 
+model WorkflowRun {
+  id          String   @id @default(cuid())
+  workflowId  String
+  status      String?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  durationMs  Int?
+  costUsd     Float?
+
+  workflow    Workflow @relation(fields: [workflowId], references: [id])
+}
+
+model Metric {
+  id              String     @id @default(cuid())
+  name            String
+  value           Float      @default(0)
+  status          String?    // running | completed | failed
+  costUsd         Float?
+  durationMs      Int?
+  runsToday       Int?       @default(0)
+
+  workflowId      String?
+  workflow        Workflow?  @relation(fields: [workflowId], references: [id])
+
+  workspaceId     String?
+  workspace       Workspace? @relation(fields: [workspaceId], references: [id])
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+model Agent {
+  id                   String     @id @default(cuid())
+  name                 String
+  description          String
+  type                 String
+  active               Boolean    @default(true)
+  configVaultId        String?
+  confidenceScore      Float?
+  stripeSubscriptionId String?
+
+  workspaceId          String?
+  workspace            Workspace? @relation(fields: [workspaceId], references: [id])
+
+  tasks                AgentTask[]
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+}
+
+model AgentTask {
+  id          String     @id @default(cuid())
+  input       Json?
+  output      Json?
+  status      String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  agentId     String?
+  agent       Agent?     @relation(fields: [agentId], references: [id])
+
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id])
+}
+
+model BillingEvent {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id])
+  amountUsd    Float
+  type         String
+  createdAt    DateTime  @default(now())
+}
+
+model AdminLog {
+  id          String   @id @default(cuid())
+  adminId     String?
+  workspaceId String?
+  targetId    String?
+  action      String
+  createdAt   DateTime @default(now())
+}
+
 model ProfitNode {
-  id        String   @id @default(cuid())
-  name      String?
-  createdAt DateTime @default(now())
+  id            String       @id @default(cuid())
+  name          String
+  category      String?
+  baselineValue Float?
+  currentValue  Float?
+  impactWeight  Float?
+  createdAt     DateTime     @default(now())
+
+  edgesFrom     ProfitEdge[] @relation("EdgesFrom")
+  edgesTo       ProfitEdge[] @relation("EdgesTo")
 }
 
 model ProfitEdge {
-  id        String   @id @default(cuid())
-  fromId    String?
-  toId      String?
-  createdAt DateTime @default(now())
+  id          String    @id @default(cuid())
+  fromNodeId  String?
+  toNodeId    String?
+  weight      Float?
+  rationale   String?
+  createdAt   DateTime  @default(now())
+
+  fromNode    ProfitNode? @relation("EdgesFrom", fields: [fromNodeId], references: [id])
+  toNode      ProfitNode? @relation("EdgesTo", fields: [toNodeId], references: [id])
 }

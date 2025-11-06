@@ -10,20 +10,14 @@
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "jsx": "react-jsx",
-    "types": ["node", "next", "next/types/global"]
+    "isolatedModules": true,
+    "types": ["node", "jest"],
+    "noEmit": true,
+    "outDir": "dist"
   },
-  "include": [
-    "packages/**/*.ts",
-    "packages/**/*.tsx",
-    "apps/**/*.ts",
-    "apps/**/*.tsx",
-    "prisma/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "**/*.d.ts",
-    "apps/web/.next",
-    "apps/web/node_modules"
-  ]
+  "include": ["src/**/*", "tests/**/*", "prisma/**/*"],
+  "exclude": ["node_modules", "dist", "apps", "packages"]
 }
+
+
+

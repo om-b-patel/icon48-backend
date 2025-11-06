@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 // Get all users
 router.get("/", async (req, res) => {
   try {
-    const users = await prisma.Metric.findMany();
+    const users = await prisma.user.findMany();
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch users" });
@@ -18,7 +18,7 @@ router.get("/", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const { email, name } = req.body;
-    const newUser = await prisma.Metric.create({
+    const newUser = await prisma.user.create({
       data: { email, name },
     });
     res.json(newUser);

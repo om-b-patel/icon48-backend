@@ -1,32 +1,9 @@
-import express from "express";
-import cors from "cors";
-import { PrismaClient } from "@prisma/client";
-import metricsRoute from "./routes/metrics";
-import profitGraphRoute from "./routes/profitGraph";
-import integrationsRoute from "./routes/integrations";import { telemetryMiddleware } from "./services/telemetry";
+import app from "./app";
 
-const app = express();
-const prisma = new PrismaClient();
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(telemetryMiddleware);
-
-// Health check
-app.get("/", (req, res) => {
-  res.send("✅ ICON48 backend API running.");
-});
-
-// API routes
-app.use("/api/metrics", metricsRoute);
-app.use("/api/profit-graph", profitGraphRoute);
-app.use("/api/integrations", integrationsRoute);
-// Server start
 const PORT = process.env.PORT || 3000;
+
 const server = app.listen(PORT, () => {
-  console.log(`✅ ICON48 backend running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
 
-export default app;
-export { server };
+export default server;

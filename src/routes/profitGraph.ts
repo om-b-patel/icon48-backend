@@ -25,4 +25,28 @@ router.get("/snapshot", async (_req, res) => {
   }
 });
 
+// POST /api/profit-graph/rebuild (stub)
+router.post("/rebuild", (_req, res) => {
+  res.json({
+    message: "Graph rebuild coming soon",
+    status: "queued"
+  });
+});
+
+// GET /api/profit-graph/snapshots (stub)
+router.get("/snapshots", (_req, res) => {
+  res.json({
+    message: "Saved snapshots coming soon",
+    snapshots: []
+  });
+});
+
+// POST /api/profit-graph/snapshots (stub)
+router.post("/snapshots", (_req, res) => {
+  res.json({
+    message: "Snapshot save coming soon",
+    id: `snapshot_${Date.now()}`
+  });
+});
+
 export default router;

@@ -4,26 +4,38 @@ import { PrismaClient } from "@prisma/client";
 const router = Router();
 const prisma = new PrismaClient();
 
-// Get all users
-router.get("/", async (req, res) => {
+// GET /api/users
+router.get("/users", async (_req, res) => {
   try {
-    const users = await prisma.user.findMany();
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        createdAt: true
+      }
+    });
     res.json(users);
   } catch (err) {
+    console.error("Users fetch error:", err);
     res.status(500).json({ error: "Failed to fetch users" });
   }
 });
 
-// Create a new user
-router.post("/", async (req, res) => {
+// PUT /api/users/:id (stub)
+router.put("/users/:id", async (req, res) => {
   try {
-    const { email, name } = req.body;
-    const newUser = await prisma.user.create({
-      data: { email, name },
+    const { role, name } = req.body;
+    
+    // TODO: Add real update logic with validation
+    res.json({
+      message: "User update coming soon",
+      userId: req.params.id,
+      changes: { role, name }
     });
-    res.json(newUser);
   } catch (err) {
-    res.status(500).json({ error: "Failed to create user" });
+    res.status(500).json({ error: "Failed to update user" });
   }
 });
 

@@ -159,3 +159,29 @@ model ProfitEdge {
   fromNode    ProfitNode? @relation("EdgesFrom", fields: [fromNodeId], references: [id])
   toNode      ProfitNode? @relation("EdgesTo", fields: [toNodeId], references: [id])
 }
+
+model BetLedger {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  status      String?   // pending, won, lost, active
+  resultJson  Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Integration {
+  id         String    @id @default(cuid())
+  type       String    // stripe, ga4, posthog, quickbooks, slack, etc.
+  status     String?   // connected, disconnected, error
+  configJson Json?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model TelemetryEvent {
+  id        String   @id @default(cuid())
+  event     String
+  payload   Json?
+  createdAt DateTime @default(now())
+}

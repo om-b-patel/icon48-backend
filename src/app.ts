@@ -35,13 +35,13 @@ app.get("/", (_req, res) => {
 app.use("/api", systemRoute);           // /api/health, /api/status, /api/config, /api/telemetry, /api/logs
 app.use("/api", authRoute);             // /api/auth/*
 app.use("/api", usersRoute);            // /api/users
-app.use("/api/metrics", metricsRoute);  // /api/metrics
+app.use("/api", metricsRoute);          // /api/metrics  
 app.use("/api", financeRoute);          // /api/finance/*
 app.use("/api", agentsRoute);           // /api/agents
 app.use("/api", workflowsRoute);        // /api/workflows
-app.use("/api/profit-graph", profitGraphRoute); // /api/profit-graph
+app.use("/api", profitGraphRoute);      // /api/profit-graph
 app.use("/api", betsRoute);             // /api/bets
-app.use("/api/integrations", integrationsRoute); // /api/integrations
+app.use("/api", integrationsRoute);     // /api/integrations
 app.use("/api", marketingRoute);        // /api/marketing, /api/audience
 app.use("/api", supportRoute);          // /api/support/*
 app.use("/api", operationsRoute);       // /api/operations

@@ -5,7 +5,7 @@ const router = Router();
 const prisma = new PrismaClient();
 
 // GET /api/metrics
-router.get("/", async (_req, res) => {
+router.get("/metrics", async (_req, res) => {
   try {
     const metrics = await prisma.metric.findMany({
       orderBy: { createdAt: "desc" },
@@ -19,7 +19,7 @@ router.get("/", async (_req, res) => {
 });
 
 // POST /api/metrics
-router.post("/", async (req, res) => {
+router.post("/metrics", async (req, res) => {
   try {
     const { name, value, workspaceId, workflowId } = req.body;
     

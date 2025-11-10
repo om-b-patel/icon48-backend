@@ -4,7 +4,7 @@ import { getProfitGraphSnapshot } from "../services/profitGraph";
 const router = Router();
 
 // GET /api/profit-graph
-router.get("/", async (_req, res) => {
+router.get("/profit-graph", async (_req, res) => {
   try {
     const snapshot = await getProfitGraphSnapshot();
     res.json(snapshot);
@@ -15,7 +15,7 @@ router.get("/", async (_req, res) => {
 });
 
 // GET /api/profit-graph/snapshot
-router.get("/snapshot", async (_req, res) => {
+router.get("/profit-graph/snapshot", async (_req, res) => {
   try {
     const snapshot = await getProfitGraphSnapshot();
     res.json(snapshot);
@@ -26,7 +26,7 @@ router.get("/snapshot", async (_req, res) => {
 });
 
 // POST /api/profit-graph/rebuild (stub)
-router.post("/rebuild", (_req, res) => {
+router.post("/profit-graph/rebuild", (_req, res) => {
   res.json({
     message: "Graph rebuild coming soon",
     status: "queued"
@@ -34,7 +34,7 @@ router.post("/rebuild", (_req, res) => {
 });
 
 // GET /api/profit-graph/snapshots (stub)
-router.get("/snapshots", (_req, res) => {
+router.get("/profit-graph/snapshots", (_req, res) => {
   res.json({
     message: "Saved snapshots coming soon",
     snapshots: []
@@ -42,7 +42,7 @@ router.get("/snapshots", (_req, res) => {
 });
 
 // POST /api/profit-graph/snapshots (stub)
-router.post("/snapshots", (_req, res) => {
+router.post("/profit-graph/snapshots", (_req, res) => {
   res.json({
     message: "Snapshot save coming soon",
     id: `snapshot_${Date.now()}`

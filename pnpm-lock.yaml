@@ -42,6 +42,9 @@ importers:
       artillery:
         specifier: ^2.0.26
         version: 2.0.26(@types/node@20.19.23)
+      axios:
+        specifier: ^1.12.2
+        version: 1.12.2
       jest:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@20.19.23)(ts-node@10.9.2(@types/node@20.19.23)(typescript@5.9.3))

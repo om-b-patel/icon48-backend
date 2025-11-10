@@ -8,7 +8,7 @@ const router = Router();
 const prisma = new PrismaClient();
 
 // GET /api/integrations - list all integrations
-router.get("/", async (_req, res) => {
+router.get("/integrations", async (_req, res) => {
   try {
     const integrations = await prisma.integration.findMany();
     res.json(integrations);
@@ -19,7 +19,7 @@ router.get("/", async (_req, res) => {
 });
 
 // POST /api/integrations/connect (stub)
-router.post("/connect", async (req, res) => {
+router.post("/integrations/connect", async (req, res) => {
   try {
     const { type, credentials } = req.body;
     
@@ -43,40 +43,40 @@ router.post("/connect", async (req, res) => {
 });
 
 // POST /api/integrations/sync (stub)
-router.post("/sync", (_req, res) => {
+router.post("/integrations/sync", (_req, res) => {
   res.json({
     status: "queued",
     message: "Manual sync coming soon"
   });
 });
 
-router.get("/quickbooks", async (_req, res) => {
+router.get("/integrations/quickbooks", async (_req, res) => {
   res.json(await fetchQuickBooksData());
 });
-router.post("/quickbooks/connect", async (_req, res) => {
+router.post("/integrations/quickbooks/connect", async (_req, res) => {
   res.json(await connectQuickBooks());
 });
-router.post("/quickbooks/disconnect", async (_req, res) => {
+router.post("/integrations/quickbooks/disconnect", async (_req, res) => {
   res.json(await disconnectQuickBooks());
 });
 
-router.get("/hubspot", async (_req, res) => {
+router.get("/integrations/hubspot", async (_req, res) => {
   res.json(await fetchHubSpotData());
 });
-router.post("/hubspot/connect", async (_req, res) => {
+router.post("/integrations/hubspot/connect", async (_req, res) => {
   res.json(await connectHubSpot());
 });
-router.post("/hubspot/disconnect", async (_req, res) => {
+router.post("/integrations/hubspot/disconnect", async (_req, res) => {
   res.json(await disconnectHubSpot());
 });
 
-router.get("/shopify", async (_req, res) => {
+router.get("/integrations/shopify", async (_req, res) => {
   res.json(await fetchShopifyData());
 });
-router.post("/shopify/connect", async (_req, res) => {
+router.post("/integrations/shopify/connect", async (_req, res) => {
   res.json(await connectShopify());
 });
-router.post("/shopify/disconnect", async (_req, res) => {
+router.post("/integrations/shopify/disconnect", async (_req, res) => {
   res.json(await disconnectShopify());
 });
 

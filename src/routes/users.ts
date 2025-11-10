@@ -24,7 +24,7 @@ router.get("/users", async (_req, res) => {
 });
 
 // PUT /api/users/:id (stub)
-router.put("/users/:id", async (req, res) => {
+router.put("/:id", async (req, res) => {
   try {
     const { role, name } = req.body;
     

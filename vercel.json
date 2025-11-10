@@ -1,10 +1,9 @@
 {
-  "buildCommand": "cd ../.. && pnpm build --filter=@icon48/web",
-  "outputDirectory": "apps/web/.next",
-  "devCommand": "cd ../.. && pnpm dev --filter=@icon48/web",
-  "installCommand": "pnpm install",
-  "framework": "nextjs",
-  "regions": ["iad1"]
+  "version": 2,
+  "builds": [
+    { "src": "src/server.ts", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/(.*)", "dest": "src/server.ts" }
+  ]
 }
-
-

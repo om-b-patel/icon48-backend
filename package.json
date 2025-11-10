@@ -4,7 +4,7 @@
   "private": true,
   "description": "ICON48 - Autonomous enterprise operating system backend",
   "engines": {
-    "node": "18.x",
+    "node": "22.x",
     "pnpm": ">=8.0.0"
   },
   "scripts": {

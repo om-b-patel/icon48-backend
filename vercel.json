@@ -1,5 +1,9 @@
 {
+  "framework": null,
+  "installCommand": "pnpm install",
   "buildCommand": "npx prisma generate",
   "outputDirectory": ".",
-  "framework": null
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api/$1" }
+  ]
 }

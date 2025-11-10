@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
-    "target": "es2020",
+    "target": "ES2020",
     "module": "commonjs",
+    "lib": ["ES2020"],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -9,14 +10,12 @@
     "resolveJsonModule": true,
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
-    "jsx": "react-jsx",
     "isolatedModules": true,
     "types": ["node", "jest"],
-    "noEmit": true,
     "outDir": "dist"
   },
-  "include": ["src/**/*", "tests/**/*", "prisma/**/*"],
-  "exclude": ["node_modules", "dist", "apps", "packages"]
+  "include": ["src/**/*", "prisma/**/*"],
+  "exclude": ["node_modules", "dist", "apps", "packages", "tests"]
 }
 
 

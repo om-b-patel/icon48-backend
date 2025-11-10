@@ -1,9 +1,41 @@
 import express from "express";
-import cors from "cors";
 import { PrismaClient } from "@prisma/client";
-import { telemetryMiddleware } from "./services/telemetry";
+import cors from "cors";
 
-// Import all route modules
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// --- Serverless-safe Prisma initialization ---
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log: ["query", "error", "warn"],
+  });
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+
+// --- Health check route ---
+app.get("/api/health", async (_, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: "ok", db: "connected" });
+  } catch (err: any) {
+    console.error("Health check failed:", err);
+    res.status(500).json({
+      status: "error",
+      db: "disconnected",
+      message: err.message,
+    });
+  }
+});
+
+// --- Base route ---
+app.get("/", (_, res) => {
+  res.send("ICON48 backend API running.");
+});
+
+// --- Import and mount all route modules ---
 import systemRoutes from "./routes/system";
 import authRoutes from "./routes/auth";
 import usersRoutes from "./routes/users";
@@ -21,50 +53,29 @@ import complianceRoutes from "./routes/compliance";
 import inventoryRoutes from "./routes/inventory";
 import adminRoutes from "./routes/admin";
 
-const app = express();
-const prisma = new PrismaClient();
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(telemetryMiddleware);
-
-// Root health check
-app.get("/", (_, res) => {
-  res.send("✅ ICON48 backend API running.");
-});
-
-// Explicit health endpoint for Vercel
-app.get("/api/health", (_, res) => {
-  res.json({ status: "ok" });
-});
-
 // Mount all API routes at /api prefix
-// Routes define their own sub-paths (e.g., /health, /status, /users, etc.)
-app.use("/api", systemRoutes);      // /api/health, /api/status, /api/config, etc.
-app.use("/api", authRoutes);        // /api/auth/login, /api/auth/register, etc.
-app.use("/api", usersRoutes);       // /api/users, /api/users/:id
-app.use("/api", metricsRoutes);     // /api/metrics
-app.use("/api", financeRoutes);     // /api/finance/summary, /api/finance/forecast, etc.
-app.use("/api", agentsRoutes);      // /api/agents, /api/agents/:id, etc.
-app.use("/api", workflowsRoutes);   // /api/workflows, /api/workflows/:id/run, etc.
-app.use("/api", profitGraphRoutes); // /api/profit-graph, /api/profit-graph/snapshot, etc.
-app.use("/api", betsRoutes);        // /api/bets, /api/bets/stats, etc.
-app.use("/api", integrationsRoutes); // /api/integrations, /api/integrations/connect, etc.
-app.use("/api", marketingRoutes);   // /api/marketing/campaigns, /api/audience, etc.
-app.use("/api", supportRoutes);     // /api/support/tickets, /api/support/sentiment, etc.
-app.use("/api", operationsRoutes);  // /api/operations, /api/operations/bottlenecks
-app.use("/api", complianceRoutes);  // /api/compliance/audit, /api/compliance/policies
-app.use("/api", inventoryRoutes);   // /api/inventory, /api/inventory/alerts
-app.use("/api", adminRoutes);       // /api/admin/seed, /api/admin/reset, etc.
+app.use("/api", systemRoutes);
+app.use("/api", authRoutes);
+app.use("/api", usersRoutes);
+app.use("/api", metricsRoutes);
+app.use("/api", financeRoutes);
+app.use("/api", agentsRoutes);
+app.use("/api", workflowsRoutes);
+app.use("/api", profitGraphRoutes);
+app.use("/api", betsRoutes);
+app.use("/api", integrationsRoutes);
+app.use("/api", marketingRoutes);
+app.use("/api", supportRoutes);
+app.use("/api", operationsRoutes);
+app.use("/api", complianceRoutes);
+app.use("/api", inventoryRoutes);
+app.use("/api", adminRoutes);
 
-// Local-only listener (Vercel handles this in production)
+// --- Local listener (only in dev) ---
 if (process.env.NODE_ENV !== "production") {
   const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`✅ ICON48 backend API running on http://localhost:${PORT}`);
-  });
+  app.listen(PORT, () => console.log(`Local dev server running on port ${PORT}`));
 }
 
-// Export for Vercel serverless
+// --- Export for Vercel serverless ---
 export default app;

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { prisma } from "../index.js";
+import { prisma } from "../index";
 import { connectQuickBooks, fetchQuickBooksData, disconnectQuickBooks } from "../integrations/quickbooks";
 import { connectHubSpot, fetchHubSpotData, disconnectHubSpot } from "../integrations/hubspot";
 import { connectShopify, fetchShopifyData, disconnectShopify } from "../integrations/shopify";

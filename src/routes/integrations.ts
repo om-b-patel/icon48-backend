@@ -1,11 +1,10 @@
 import { Router } from "express";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../index.js";
 import { connectQuickBooks, fetchQuickBooksData, disconnectQuickBooks } from "../integrations/quickbooks";
 import { connectHubSpot, fetchHubSpotData, disconnectHubSpot } from "../integrations/hubspot";
 import { connectShopify, fetchShopifyData, disconnectShopify } from "../integrations/shopify";
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // GET /api/integrations - list all integrations
 router.get("/integrations", async (_req, res) => {

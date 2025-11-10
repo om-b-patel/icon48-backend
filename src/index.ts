@@ -1,19 +1,10 @@
 import express from "express";
-import { PrismaClient } from "@prisma/client";
 import cors from "cors";
+import { prisma } from "./prisma";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-
-// --- Serverless-safe Prisma initialization ---
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: ["query", "error", "warn"],
-  });
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
 // --- Health check route ---
 app.get("/api/health", async (_, res) => {

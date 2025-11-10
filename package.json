@@ -8,17 +8,10 @@
     "pnpm": ">=8.0.0"
   },
   "scripts": {
-    "dev": "ts-node src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js",
-    "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck",
-    "clean": "rm -rf dist node_modules",
-    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
-    "db:push": "npx prisma db push",
-    "db:migrate": "npx prisma migrate deploy",
-    "db:studio": "npx prisma studio",
-    "test": "jest --ci --reporters=default"
+    "dev": "npx prisma generate && nodemon src/index.js",
+    "build": "npx prisma generate && echo 'No frontend build needed for backend'",
+    "start": "npx prisma generate && node src/index.js",
+    "postinstall": "npx prisma generate"
   },
   "devDependencies": {
     "@types/express": "^5.0.5",
